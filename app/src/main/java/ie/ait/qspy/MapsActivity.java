@@ -5,6 +5,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -15,9 +16,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.NumberPicker;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import com.ait.qspy.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -37,8 +39,12 @@ import com.google.android.libraries.places.api.net.FindCurrentPlaceRequest;
 import com.google.android.libraries.places.api.net.FindCurrentPlaceResponse;
 import com.google.android.libraries.places.api.net.PlacesClient;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import ie.ait.qspy.entity.StoreDetails;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -51,10 +57,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String KEY_LOCATION = "location";
     // Used for selecting the current place.
     private static final int M_MAX_ENTRIES = 30;
-    private String[] likelyPlaceNames;
-    private String[] likelyPlaceAddresses;
-    private List[] likelyPlaceAttributions;
-    private LatLng[] likelyPlaceLatLngs;
+
 
     private CameraPosition cameraPosition;
     // The entry point to the Places API.
@@ -63,19 +66,19 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private boolean locationPermissionGranted;
     // The geographical location where the device is currently located. That is, the last-known
     // location retrieved by the Fused Location Provider.
-    private Location lastKnownLocation;
+    private Location lastLocation;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
     private GoogleMap map;
-    private DialogActivity dialog;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
-            lastKnownLocation = savedInstanceState.getParcelable(KEY_LOCATION);
+            lastLocation = savedInstanceState.getParcelable(KEY_LOCATION);
             cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
         }
         // Retrieve the content view that renders the map.
@@ -86,15 +89,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         // Construct a FusedLocationProviderClient.
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
     }
 
-//    public void goToAward(View view) {
-//        Intent awardIntent = new Intent(this, AwardActivity.class);
-//        startActivity(awardIntent);
-//    }
 
     /**
      * Sets up the options menu.
@@ -114,11 +112,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
      * @param item The menu item to handle.
      * @return Boolean.
      */
-    // [START maps_current_place_on_options_item_selected]
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.option_get_place) {
-            showCurrentPlace();
+            showNearbyPlaces();
         }
         return true;
     }
@@ -137,7 +134,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onSaveInstanceState(Bundle outState) {
         if (map != null) {
             outState.putParcelable(KEY_CAMERA_POSITION, map.getCameraPosition());
-            outState.putParcelable(KEY_LOCATION, lastKnownLocation);
+            outState.putParcelable(KEY_LOCATION, lastLocation);
         }
         super.onSaveInstanceState(outState);
     }
@@ -150,7 +147,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap map) {
         this.map = map;
-        // [START map_current_place_set_info_window_adapter]
         // Use a custom info window adapter to handle multiple lines of text in the
         // info window contents.
         this.map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
@@ -164,13 +160,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public View getInfoContents(Marker marker) {
                 // Inflate the layouts for the info window, title and snippet.
-                View infoWindow = getLayoutInflater().inflate(R.layout.custom_info_contents,
-                        (FrameLayout) findViewById(R.id.map), false);
+                View infoWindow = getLayoutInflater().inflate(R.layout.custom_info_contents, (FrameLayout) findViewById(R.id.map), false);
 
-                TextView title = infoWindow.findViewById(R.id.title);
+                TextView title = (TextView) infoWindow.findViewById(R.id.title);
                 title.setText(marker.getTitle());
 
-                TextView snippet = infoWindow.findViewById(R.id.snippet);
+                TextView snippet = (TextView) infoWindow.findViewById(R.id.snippet);
                 snippet.setText(marker.getSnippet());
 
                 return infoWindow;
@@ -182,8 +177,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         updateLocationUI();
         // Get the current location of the device and set the position of the map.
         getDeviceLocation();
-        //showNearestPlace();
-        showCurrentPlace();
     }
 
     /**
@@ -202,10 +195,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     public void onComplete(@NonNull Task<Location> task) {
                         if (task.isSuccessful()) {
                             // Set the map's camera position to the current location of the device.
-                            lastKnownLocation = task.getResult();
-                            if (lastKnownLocation != null) {
-                                map.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                                        new LatLng(lastKnownLocation.getLatitude(), lastKnownLocation.getLongitude()), DEFAULT_ZOOM));
+                            lastLocation = task.getResult();
+                            if (lastLocation != null) {
+                                map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), DEFAULT_ZOOM));
                             }
                         } else {
                             Log.d(TAG, "Current location is null. Using defaults.");
@@ -250,88 +242,40 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         updateLocationUI();
     }
-//    private void showNearestPlace() {
-//        new AlertDialog.Builder(this)
-//                .setTitle("Location")
-//                .setMessage(R.string.are_you_in_the_store_name)
-//                .setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int which) {
-//
-//                    }
-//                })
-//                .setNegativeButton(R.string.no, new DialogInterface.OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int which) {
-//                        showCurrentPlace();
-//                    }
-//                })
-//                .setIcon(android.R.drawable.ic_menu_compass)
-//                .show();
-//
-//
-//    }
+
 
     /**
      * Prompts the user to select the current place from a list of likely places, and shows the
      * current place on the map - provided the user has granted location permission.
      */
-    // [START maps_current_place_show_current_place]
-    private void showCurrentPlace() {
+    private void showNearbyPlaces() {
         if (map == null) {
             return;
         }
-
         if (locationPermissionGranted) {
-            // Use fields to define the data types to return.
-            List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG);
-            // Use the builder to create a FindCurrentPlaceRequest.
-            FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
-            // Get the likely places - that is, the businesses and other points of interest that
-            // are the best match for the device's current location.
-            @SuppressWarnings("MissingPermission") final Task<FindCurrentPlaceResponse> placeResult = placesClient.findCurrentPlace(request);
+            final Task<FindCurrentPlaceResponse> placeResult = retrieveCurrentPlaces();
             placeResult.addOnCompleteListener(new OnCompleteListener<FindCurrentPlaceResponse>() {
                 @Override
                 public void onComplete(@NonNull Task<FindCurrentPlaceResponse> task) {
                     if (task.isSuccessful() && task.getResult() != null) {
                         final FindCurrentPlaceResponse likelyPlaces = task.getResult();
+                        final Place place = likelyPlaces.getPlaceLikelihoods().get(0).getPlace();
+                        final String storeName = place.getName();
 
                         new AlertDialog.Builder(MapsActivity.this)
                                 .setTitle("Location")
-                                .setMessage(R.string.are_you_in_the_store_name)
+                                .setMessage(getString(R.string.are_you_in_the_store_name, storeName))
                                 .setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
-
                                     public void onClick(DialogInterface dialog, int which) {
-                                        // Chamar o método após o usuário escolher a loja que está atualmente
-
-
+                                        //select the current store
+                                        StoreDetails store = new StoreDetails(place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
+                                        selectPlaceOnMap(store);
+                                        showQueueInputDialog();
                                     }
                                 })
                                 .setNegativeButton(R.string.no, new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int which) {
-                                        // mostrar lista de lojas
-                                        // Set the count, handling cases where less than 5 entries are returned.
-                                        int count = Math.min(likelyPlaces.getPlaceLikelihoods().size(), M_MAX_ENTRIES);
-
-                                        int i = 0;
-                                        likelyPlaceNames = new String[count];
-                                        likelyPlaceAddresses = new String[count];
-                                        likelyPlaceAttributions = new List[count];
-                                        likelyPlaceLatLngs = new LatLng[count];
-
-                                        for (PlaceLikelihood placeLikelihood : likelyPlaces.getPlaceLikelihoods()) {
-                                            // Build a list of likely places to show the user.
-                                            likelyPlaceNames[i] = placeLikelihood.getPlace().getName();
-                                            likelyPlaceAddresses[i] = placeLikelihood.getPlace().getAddress();
-                                            likelyPlaceAttributions[i] = placeLikelihood.getPlace().getAttributions();
-                                            likelyPlaceLatLngs[i] = placeLikelihood.getPlace().getLatLng();
-
-                                            i++;
-                                            if (i > (count - 1)) {
-                                                break;
-                                            }
-                                        }
-                                        // Show a dialog offering the user the list of likely places, and add a
-                                        // marker at the selected place.
-                                        MapsActivity.this.openPlacesDialog();
+                                        filterStoresAndShowPlacesDialog(likelyPlaces);
                                     }
                                 })
                                 .setIcon(android.R.drawable.ic_menu_compass)
@@ -354,36 +298,100 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void showQueueInputDialog() {
+        NumberPicker picker = new NumberPicker(MapsActivity.this);
+        picker.setMinValue(0);
+        picker.setMaxValue(100);
+        final AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+        builder.setMessage(getString((R.string.how_many_people_are_in_the_queue)));
+        builder.setView(picker);
+
+        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                Toast.makeText(getApplicationContext(), "OK Pressed: " + picker.getValue(), Toast.LENGTH_LONG).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                Toast.makeText(getApplicationContext(), "Cancel Pressed", Toast.LENGTH_LONG).show();
+                finish();
+            }
+        });
+
+        builder.show();
+    }
+
     /**
      * Displays a form allowing the user to select a place from a list of likely places.
+     *
+     * @param likelyPlaces
      */
-    // [START maps_current_place_open_places_dialog]
-    private void openPlacesDialog() {
+    private void filterStoresAndShowPlacesDialog(FindCurrentPlaceResponse likelyPlaces) {
+        // mostrar lista de lojas
+        // Set the count, handling cases where less than 5 entries are returned.
+        int count = Math.min(likelyPlaces.getPlaceLikelihoods().size(), M_MAX_ENTRIES);
+
+        List<StoreDetails> storeDetailsList = new ArrayList<>();
+        for (int i = 0; i < count; i++) {
+            PlaceLikelihood placeLikelihood = likelyPlaces.getPlaceLikelihoods().get(i);
+            Place place = placeLikelihood.getPlace();
+            StoreDetails store = new StoreDetails(place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
+            storeDetailsList.add(store);
+        }
+
+        // Show a dialog offering the user the list of likely places, and add a
+        // marker at the selected place.
         // Ask the user to choose the place where they are now.
         DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 // The "which" argument contains the position of the selected item.
-                LatLng markerLatLng = likelyPlaceLatLngs[which];
-                String markerSnippet = likelyPlaceAddresses[which];
-                if (likelyPlaceAttributions[which] != null) {
-                    markerSnippet = markerSnippet + "\n" + likelyPlaceAttributions[which];
-                }
-                // Add a marker for the selected place, with an info window
-                // showing information about that place.
-                map.addMarker(new MarkerOptions()
-                        .title(likelyPlaceNames[which])
-                        .position(markerLatLng)
-                        .snippet(markerSnippet));
-                // Position the map's camera at the location of the marker.
-                map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
+                StoreDetails store = storeDetailsList.get(which);
+                selectPlaceOnMap(store);
+                showQueueInputDialog();
             }
         };
+
+        String[] names = storeDetailsList
+                .stream() // Calls the stream API
+                .map(StoreDetails::getName) // Perform a transformation using the map method
+                .toArray(String[]::new); // Convert to array
+
         // Display the dialog.
-        AlertDialog dialog = new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this)
                 .setTitle(R.string.pick_place)
-                .setItems(likelyPlaceNames, listener)
+                .setItems(names, listener)
                 .show();
+    }
+
+    @SuppressLint("MissingPermission")
+    private Task<FindCurrentPlaceResponse> retrieveCurrentPlaces() {
+        // Use fields to define the data types to return.
+        List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG);
+        // Use the builder to create a FindCurrentPlaceRequest.
+        FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
+        // Get the likely places - that is, the businesses and other points of interest that
+        // are the best match for the device's current location.
+        return placesClient.findCurrentPlace(request);
+    }
+
+
+    private void selectPlaceOnMap(StoreDetails store) {
+        LatLng markerLatLng = store.getCoordinates();
+        String markerSnippet = store.getAddress();
+        if (store.getAttributions() != null) {
+            markerSnippet = markerSnippet + "\n" + store.getAttributions();
+        }
+
+        // Add a marker for the selected place, with an info window
+        // showing information about that place.
+        map.addMarker(new MarkerOptions()
+                .title(store.getName())
+                .position(markerLatLng)
+                .snippet(markerSnippet));
+        // Position the map's camera at the location of the marker.
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
     }
 
     /**
@@ -400,7 +408,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             } else {
                 map.setMyLocationEnabled(false);
                 map.getUiSettings().setMyLocationButtonEnabled(false);
-                lastKnownLocation = null;
+                lastLocation = null;
                 getLocationPermission();
             }
         } catch (SecurityException e) {
