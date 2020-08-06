@@ -42,7 +42,6 @@ import com.google.android.libraries.places.api.net.PlacesClient;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import ie.ait.qspy.entity.StoreDetails;
 
@@ -58,20 +57,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     // Used for selecting the current place.
     private static final int M_MAX_ENTRIES = 30;
 
-
     private CameraPosition cameraPosition;
     // The entry point to the Places API.
     private PlacesClient placesClient;
 
     private boolean locationPermissionGranted;
-    // The geographical location where the device is currently located. That is, the last-known
-    // location retrieved by the Fused Location Provider.
+    // The geographical location where the device is currently located. That is, the last-known location retrieved by the Fused Location Provider.
     private Location lastLocation;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
 
     private GoogleMap map;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,25 +89,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
     }
 
-
-    /**
-     * Sets up the options menu.
-     *
-     * @param menu The options menu.
-     * @return Boolean.
-     */
+    //Sets up the options menu.
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.current_place_menu, menu);
         return true;
     }
 
-    /**
-     * Handles a click on the menu option to get a place.
-     *
-     * @param item The menu item to handle.
-     * @return Boolean.
-     */
+    //Handles a click on the menu option to get a place.
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.option_get_place) {
@@ -120,16 +105,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return true;
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
-
+    //If Google Play services is not installed on the device, the user will be prompted to install it inside the SupportMapFragment.
+    // This method will only be triggered once the user has installed Google Play services and returned to the app.
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         if (map != null) {
@@ -139,16 +116,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onSaveInstanceState(outState);
     }
 
-    /**
-     * Manipulates the map when it's available.
-     * This callback is triggered when the map is ready to be used.
-     */
-    // [START maps_current_place_on_map_ready]
+    //Manipulates the map when it's available. This callback is triggered when the map is ready to be used.
     @Override
     public void onMapReady(GoogleMap map) {
         this.map = map;
-        // Use a custom info window adapter to handle multiple lines of text in the
-        // info window contents.
+        // Use a custom info window adapter to handle multiple lines of text in the info window contents.
         this.map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
             @Override
@@ -179,14 +151,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         getDeviceLocation();
     }
 
-    /**
-     * Gets the current location of the device, and positions the map's camera.
-     */
+    //Gets the current location of the device, and positions the map's camera.
     private void getDeviceLocation() {
-        /*
-         * Get the best and most recent location of the device, which may be null in rare
-         * cases when a location is not available.
-         */
+        //Get the best and most recent location of the device, which may be null in rare cases when a location is not available.
         try {
             if (locationPermissionGranted) {
                 Task<Location> locationResult = fusedLocationProviderClient.getLastLocation();
@@ -213,15 +180,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    /**
-     * Prompts the user for permission to use the device location.
-     */
+    //Prompts the user for permission to use the device location.
     private void getLocationPermission() {
-        /*
-         * Request location permission, so that we can get the location of the
-         * device. The result of the permission request is handled by a callback,
-         * onRequestPermissionsResult.
-         */
+        //Request location permission, so that we can get the location of the device.
+        // The result of the permission request is handled by a callback, onRequestPermissionsResult.
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationPermissionGranted = true;
         } else {
@@ -229,9 +191,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    /**
-     * Handles the result of the request for location permissions.
-     */
+    //Handles the result of the request for location permissions.
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         locationPermissionGranted = false;
@@ -243,11 +203,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         updateLocationUI();
     }
 
-
-    /**
-     * Prompts the user to select the current place from a list of likely places, and shows the
-     * current place on the map - provided the user has granted location permission.
-     */
+    //Prompts the user to select the current place from a list of likely places, and shows the current place on the map - provided the user has granted location permission.
     private void showNearbyPlaces() {
         if (map == null) {
             return;
@@ -298,6 +254,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    //Display a pop-up message allowing the user to contribute to the App.
     private void showQueueInputDialog() {
         NumberPicker picker = new NumberPicker(MapsActivity.this);
         picker.setMinValue(0);
@@ -322,14 +279,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         builder.show();
     }
 
-    /**
-     * Displays a form allowing the user to select a place from a list of likely places.
-     *
-     * @param likelyPlaces
-     */
+    //Displays a form allowing the user to select a place from a list of likely places.
     private void filterStoresAndShowPlacesDialog(FindCurrentPlaceResponse likelyPlaces) {
-        // mostrar lista de lojas
-        // Set the count, handling cases where less than 5 entries are returned.
+        // Set the count, handling cases where less than 30 entries are returned.
         int count = Math.min(likelyPlaces.getPlaceLikelihoods().size(), M_MAX_ENTRIES);
 
         List<StoreDetails> storeDetailsList = new ArrayList<>();
@@ -339,9 +291,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             StoreDetails store = new StoreDetails(place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
             storeDetailsList.add(store);
         }
-
-        // Show a dialog offering the user the list of likely places, and add a
-        // marker at the selected place.
+        // Show a dialog offering the user the list of likely places, and add a marker at the selected place.
         // Ask the user to choose the place where they are now.
         DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
             @Override
@@ -358,7 +308,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .map(StoreDetails::getName) // Perform a transformation using the map method
                 .toArray(String[]::new); // Convert to array
 
-        // Display the dialog.
+        //Display a list of places
         new AlertDialog.Builder(this)
                 .setTitle(R.string.pick_place)
                 .setItems(names, listener)
@@ -371,21 +321,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG);
         // Use the builder to create a FindCurrentPlaceRequest.
         FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
-        // Get the likely places - that is, the businesses and other points of interest that
-        // are the best match for the device's current location.
+        // Get the likely places - that is, the businesses and other points of interest that are the best match for the device's current location.
         return placesClient.findCurrentPlace(request);
     }
-
 
     private void selectPlaceOnMap(StoreDetails store) {
         LatLng markerLatLng = store.getCoordinates();
         String markerSnippet = store.getAddress();
         if (store.getAttributions() != null) {
             markerSnippet = markerSnippet + "\n" + store.getAttributions();
-        }
 
-        // Add a marker for the selected place, with an info window
-        // showing information about that place.
+        }
+        // Add a marker for the selected place, with an info window showing information about that place.
         map.addMarker(new MarkerOptions()
                 .title(store.getName())
                 .position(markerLatLng)
@@ -394,9 +341,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
     }
 
-    /**
-     * Updates the map's UI settings based on whether the user has granted location permission.
-     */
+    //Updates the map's UI settings based on whether the user has granted location permission.
     private void updateLocationUI() {
         if (map == null) {
             return;
