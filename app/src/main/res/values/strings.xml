@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">qspy</string>
     <string name="title_activity_maps">Map</string>
-    <string name="press_the_back_button_of_your_phone">Press The Back Button of Your Phone.</string>
+    <string name="press_the_back_button_of_your_phone">A collaborative queue monitoring application to optimize your time and well-being.</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
     <string name="are_you_in_the_store_name">Are you in the %1$s?</string>
@@ -9,12 +9,20 @@
         <item>likelyPlaceNames</item>
     </string-array>
     <string name="how_many_people_are_in_the_queue">How many people are in the queue?</string>
+    <string name="thank_you">"Thank you for your input!"</string>
     <string name="default_info_title">Default Location</string>
     <string name="default_info_snippet">No places found, because location permission is disabled.</string>
-    <string name="option_get_place">Report queue length</string>
     <string name="pick_place">Choose a place</string>
     <string name="title_activity_input">Map</string>
     <string name="input_numb">Enter a number</string>
     <string name="btn_ok">Ok</string>
+    <string name="store_access">Store Access</string>
+    <string name="title_activity_main">MainActivity</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="input">Report</string>
+    <string name="sv_location">Search"</string>
+    <string name="points">Here is your bonus: 5 points </string>
+
 
 </resources>

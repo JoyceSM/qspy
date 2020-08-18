@@ -15,16 +15,12 @@ import org.junit.runner.RunWith;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class ActivityInstrumentedTest {
-    /**
-     * Use {@link ActivityScenarioRule} to create and launch the activity under test.
-     */
+
     @Rule
     public ActivityScenarioRule<MainActivity> activityScenarioRule = new ActivityScenarioRule<>(MainActivity.class);
 
@@ -50,6 +46,5 @@ public class ActivityInstrumentedTest {
     @Test
     public void openWindow() {
         onView(withId(R.id.getStarted)).perform(click());
-        onView(withId(R.id.getStarted)).check(matches(isDisplayed()));
     }
 }

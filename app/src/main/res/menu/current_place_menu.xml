@@ -12,9 +12,19 @@
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+
     <item
-        android:id="@+id/option_get_place"
-        android:title="@string/option_get_place"
-        app:showAsAction="always"/>
+        android:id="@+id/points"
+        android:icon="@drawable/diamond"
+        android:title="5"
+        android:actionLayout="@layout/custom_info_contents"
+        app:showAsAction="always" />
+
+    <item
+        android:id="@+id/store_access"
+        android:orderInCategory="100"
+        android:title="@string/store_access"
+        app:showAsAction="never" />
+
 
 </menu>
