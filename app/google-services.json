@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "25038929552",
+    "firebase_url": "https://clean-mountain-284720.firebaseio.com",
+    "project_id": "clean-mountain-284720",
+    "storage_bucket": "clean-mountain-284720.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:25038929552:android:a03fa76352554ae47c6215",
+        "android_client_info": {
+          "package_name": "ie.ait.qspy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "25038929552-q9ds0soqnhjptmu74sd5ls0uluvlnni1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyADB3N6ltunz61DKfZltZGxweb3zzc7-XY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "25038929552-q9ds0soqnhjptmu74sd5ls0uluvlnni1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

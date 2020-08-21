@@ -44,6 +44,5 @@
             android:text="Get started"
             android:textColor="@android:color/white" />
 
-
     </LinearLayout>
 </ScrollView>
