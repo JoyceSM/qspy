@@ -12,7 +12,7 @@
 
     <SearchView
         android:focusable="false"
-        android:id="@+id/sv_location"
+        android:id="@+id/search_location"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"

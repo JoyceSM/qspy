@@ -3,6 +3,7 @@ package ie.ait.qspy;
 import android.provider.Settings;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -13,10 +14,13 @@ import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+
 import android.widget.FrameLayout;
 import android.widget.NumberPicker;
 import android.widget.SearchView;
@@ -52,15 +56,20 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.GeoPoint;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import ie.ait.qspy.entity.StoreDetails;
@@ -76,22 +85,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private final LatLng defaultLocation = new LatLng(-33.8523341, 151.2106085);
     private static final int DEFAULT_ZOOM = 15;
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 1;
-    // Keys for storing activity state.
+    //Keys for storing activity state.
     private static final String KEY_CAMERA_POSITION = "camera_position";
     private static final String KEY_LOCATION = "location";
-    // Used for selecting the current place.
+    //Used for selecting the current place.
     private static final int M_MAX_ENTRIES = 30;
 
-    // Collections
+    //Collections
     public static final String COLLECTION_STORES = "stores";
 
-
     private CameraPosition cameraPosition;
-    // The entry point to the Places API.
+    //The entry point to the Places API.
     private PlacesClient placesClient;
 
     private boolean locationPermissionGranted;
-    // The geographical location where the device is currently located. That is, the last-known location retrieved by the Fused Location Provider.
+    //The geographical location where the device is currently located. That is, the last-known location retrieved by the Fused Location Provider.
     private Location lastLocation;
 
     private FusedLocationProviderClient fusedLocationProviderClient;
@@ -99,10 +107,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap map;
     SearchView searchView;
 
-    // Access a Cloud Firestore instance from  MapActivity
+    //Access a Cloud Firestore instance from MapActivity.
     FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-    //get device id
+    //Get device id.
     @SuppressLint("HardwareIds")
     private String getDeviceId() {
         return Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
@@ -111,26 +119,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Retrieve location and camera position from saved instance state.
+        //Retrieve location and camera position from saved instance state.
         if (savedInstanceState != null) {
             lastLocation = savedInstanceState.getParcelable(KEY_LOCATION);
             cameraPosition = savedInstanceState.getParcelable(KEY_CAMERA_POSITION);
         }
-        // Retrieve the content view that renders the map.
+        //Retrieve the content view that renders the map.
         setContentView(R.layout.activity_maps);
-        // Construct a PlacesClient
+        //Construct a PlacesClient
         Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
         placesClient = Places.createClient(this);
 
-        // Construct a FusedLocationProviderClient.
+        //Construct a FusedLocationProviderClient.
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
-        // Search place
-        searchView = findViewById(R.id.sv_location);
+        //Search place.
+        searchView = findViewById(R.id.search_location);
         //Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
@@ -140,39 +147,51 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (searchInput.equals("")) {
                     return false;
                 }
-
                 FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
                         .setQuery(searchInput)
                         .setCountry("IE").build();
                 Task<FindAutocompletePredictionsResponse> autocompletePredictions = placesClient.findAutocompletePredictions(request);
 
-
                 autocompletePredictions.addOnSuccessListener(findAutocompletePredictionsResponse -> {
                     List<AutocompletePrediction> prediction = findAutocompletePredictionsResponse.getAutocompletePredictions();
                     // TODO: Maybe show a dialog here with the options available
                     AutocompletePrediction autocompletePrediction = prediction.get(0);
+                    //retrieve the store if exist
                     String placeId = autocompletePrediction.getPlaceId();
                     db.collection(COLLECTION_STORES).document(placeId).get()
                             .addOnSuccessListener(documentSnapshot -> {
-                                Object queueRecords = documentSnapshot.get("queueRecords");
-                                GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
-                                String name = (String) documentSnapshot.get("name");
-                                LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
-                                StringBuilder stringBuilder = new StringBuilder();
-                                for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
-                                    long length = (long) fields.get("length");
-                                    Timestamp timestamp = (Timestamp) fields.get("date");
-                                    stringBuilder.append(timestamp.toDate()).append(" - Queue length reported: ").append(length).append(System.lineSeparator());
+                                if (documentSnapshot.exists()) {
+                                    Object queueRecords = documentSnapshot.get("queueRecords");
+                                    GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
+                                    String name = (String) documentSnapshot.get("name");
+                                    LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
+                                    StringBuilder stringBuilder = new StringBuilder();
+                                    stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
+                                    for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
+                                        getRecordsDate(stringBuilder, fields);
+                                    }
+                                    Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
+                                    marker.showInfoWindow();
+                                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
+                                } else {
+                                    Toast.makeText(getApplicationContext(), "Sorry...We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
                                 }
-                                Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
-                                marker.showInfoWindow();
-                                map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
                             });
                 });
-
                 return false;
             }
 
+            //Convert the timestamp to date.
+            private void getRecordsDate(StringBuilder stringBuilder, Map<String, Object> fields) {
+                long length = (long) fields.get("length");
+                String pattern = "dd-MM HH:mm";
+                Timestamp timestamp = (Timestamp) fields.get("date");
+                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern, Locale.getDefault());
+                String date = simpleDateFormat.format(timestamp.toDate());
+                stringBuilder.append(date).append(" ").append(":").append(" ").append(length).append(System.lineSeparator());
+            }
+
+            // TODO: verificar se pode deletar este método
             @Override
             public boolean onQueryTextChange(String s) {
                 return false;
@@ -180,13 +199,28 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
         mapFragment.getMapAsync(this);
 
-        //create floating button
+        //Create floating button.
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> showNearbyPlaces());
         saveUser();
+
+        //Retrieve user points.
+        db.collection("users").document(getDeviceId()).addSnapshotListener(new EventListener<DocumentSnapshot>() {
+            @Override
+            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
+                if (documentSnapshot != null && documentSnapshot.exists()) {
+                    long points = (long) documentSnapshot.get("points");
+
+                    TextView totalPoints = (TextView) findViewById(R.id.total_points);
+                    totalPoints.setText(String.valueOf(points));
+                    //TODO: CRIAR USER LAST LOGIN NO FIREBASE
+
+                }
+            }
+        });
     }
 
-    //Sets up the options menu.
+    //Set up the options menu.
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.current_place_menu, menu);
@@ -200,32 +234,30 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             case R.string.input:
                 showNearbyPlaces();
                 return true;
-
             case R.id.store_access:
                 // User chose the "Store Access" item, show the store functionality...
                 Toast.makeText(getApplicationContext(), "Store selected", Toast.LENGTH_SHORT).show();
                 return true;
-
-            case R.id.points:
+            case R.id.level:
                 // User chose the "Diamond" action, show a pop up message with total of points
-                //  Toast.makeText(getApplicationContext(), "OK Pressed: " + picker.getValue(), Toast.LENGTH_LONG).show();
-                final AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-                builder.setMessage(getString((R.string.points)));
-                builder.show();
+                AlertDialog.Builder level = new AlertDialog.Builder(MapsActivity.this);
+                LayoutInflater avatar = LayoutInflater.from(MapsActivity.this);
+                final View view = avatar.inflate(R.layout.custom_info_contents, null);
+                level.setView(view);
+                level.setNeutralButton("Well Done! You've achieved level 1.", (dialog, msg) -> {
+                });
+
+                level.show();
 
                 return true;
-
             default:
-                // If we got here, the user's action was not recognized.
-                // Invoke the superclass to handle it.
+                //The user's action was not recognized.
                 return super.onOptionsItemSelected(item);
-
         }
-
     }
 
     //If Google Play services is not installed on the device, the user will be prompted to install it inside the SupportMapFragment.
-    // This method will only be triggered once the user has installed Google Play services and returned to the app.
+    //This method will only be triggered once the user has installed Google Play services and returned to the app.
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         if (map != null) {
@@ -235,22 +267,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onSaveInstanceState(outState);
     }
 
-    //Manipulates the map when it's available. This callback is triggered when the map is ready to be used.
     @Override
     public void onMapReady(GoogleMap map) {
         this.map = map;
-        // Use a custom info window adapter to handle multiple lines of text in the info window contents.
+
         this.map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
             @Override
-            // Return null here, so that getInfoContents() is called next.
+
             public View getInfoWindow(Marker arg0) {
                 return null;
             }
 
             @Override
             public View getInfoContents(Marker marker) {
-                // Inflate the layouts for the info window, title and snippet.
+
                 View infoWindow = getLayoutInflater().inflate(R.layout.custom_info_contents, (FrameLayout) findViewById(R.id.map), false);
 
                 TextView title = (TextView) infoWindow.findViewById(R.id.title);
@@ -262,11 +293,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return infoWindow;
             }
         });
-        // Prompt the user for permission.
+        //Prompt the user for permission.
         getLocationPermission();
-        // Turn on the My Location layer and the related control on the map.
+        //Turn on the My Location layer and the related control on the map.
         updateLocationUI();
-        // Get the current location of the device and set the position of the map.
+        //Get the current location of the device and set the position of the map.
         getDeviceLocation();
     }
 
@@ -280,7 +311,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     @Override
                     public void onComplete(@NonNull Task<Location> task) {
                         if (task.isSuccessful()) {
-                            // Set the map's camera position to the current location of the device.
+                            //Set the map's camera position to the current location of the device.
                             lastLocation = task.getResult();
                             if (lastLocation != null) {
                                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), DEFAULT_ZOOM));
@@ -301,8 +332,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     //Prompts the user for permission to use the device location.
     private void getLocationPermission() {
-        //Request location permission, so that we can get the location of the device.
-        // The result of the permission request is handled by a callback, onRequestPermissionsResult.
+
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationPermissionGranted = true;
         } else {
@@ -322,7 +352,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         updateLocationUI();
     }
 
-    //Prompts the user to select the current place from a list of likely places, and shows the current place on the map - provided the user has granted location permission.
+    //Prompts the user to select the current place from a list of likely places, and shows the current place on the map.
     private void showNearbyPlaces() {
         if (map == null) {
             return;
@@ -379,6 +409,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         UserEntity user = new UserEntity();
         user.setDate(new Date());
         user.setPoints(0);
+
         // Add a new document with a generated ID
         db.collection("users").document(getDeviceId())
                 .set(user)
@@ -403,7 +434,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         queueRecord.setDate(new Date());
         queueRecord.setLength(value);
         queueRecord.setUserId(getDeviceId());
+
         db.collection("users").document(getDeviceId()).update("points", FieldValue.increment(5));
+
         // Create a new store
         StoreEntity store = new StoreEntity();
         store.setName(storeInput.getName());

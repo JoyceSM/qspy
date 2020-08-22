@@ -14,11 +14,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@+id/points"
-        android:icon="@drawable/diamond"
-        android:title="5"
+        android:id="@+id/level"
         android:actionLayout="@layout/custom_info_contents"
+        android:icon="@drawable/trophy"
+        android:title="level"
         app:showAsAction="always" />
+
+    <item
+        android:id="@+id/total_points"
+        android:title="0"
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/store_access"
