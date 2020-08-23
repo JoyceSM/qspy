@@ -3,7 +3,7 @@ package ie.ait.qspy;
 import android.provider.Settings;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -22,6 +22,7 @@ import android.view.MenuItem;
 import android.view.View;
 
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.NumberPicker;
 import android.widget.SearchView;
 import android.widget.TextView;
@@ -38,7 +39,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
+
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.libraries.places.api.Places;
@@ -54,12 +55,12 @@ import com.google.android.libraries.places.api.net.FindCurrentPlaceResponse;
 import com.google.android.libraries.places.api.net.PlacesClient;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentReference;
+
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreException;
+
 import com.google.firebase.firestore.GeoPoint;
 
 import java.text.SimpleDateFormat;
@@ -73,10 +74,14 @@ import java.util.Locale;
 import java.util.Map;
 
 import ie.ait.qspy.entity.StoreDetails;
-import ie.ait.qspy.firebase.QueueRecord;
+import ie.ait.qspy.firebase.LevelEntity;
+import ie.ait.qspy.firebase.QueueRecordEntity;
 
 import ie.ait.qspy.firebase.StoreEntity;
 import ie.ait.qspy.firebase.UserEntity;
+import ie.ait.qspy.services.LevelService;
+import ie.ait.qspy.services.StoreService;
+import ie.ait.qspy.services.UserService;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
@@ -94,6 +99,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     //Collections
     public static final String COLLECTION_STORES = "stores";
 
+    private LevelService levelService = new LevelService();
+    private UserService userService = new UserService();
+    private StoreService storeService = new StoreService();
+
+    private LevelEntity levelEntity;
+
+
     private CameraPosition cameraPosition;
     //The entry point to the Places API.
     private PlacesClient placesClient;
@@ -105,10 +117,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private FusedLocationProviderClient fusedLocationProviderClient;
 
     private GoogleMap map;
-    SearchView searchView;
+
+
+    private SearchView searchView;
 
     //Access a Cloud Firestore instance from MapActivity.
-    FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     //Get device id.
     @SuppressLint("HardwareIds")
@@ -126,12 +140,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         //Retrieve the content view that renders the map.
         setContentView(R.layout.activity_maps);
-        //Construct a PlacesClient
-        Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
-        placesClient = Places.createClient(this);
-
-        //Construct a FusedLocationProviderClient.
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
+        initializePlacesClient();
 
         //Search place.
         searchView = findViewById(R.id.search_location);
@@ -158,25 +167,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     AutocompletePrediction autocompletePrediction = prediction.get(0);
                     //retrieve the store if exist
                     String placeId = autocompletePrediction.getPlaceId();
-                    db.collection(COLLECTION_STORES).document(placeId).get()
-                            .addOnSuccessListener(documentSnapshot -> {
-                                if (documentSnapshot.exists()) {
-                                    Object queueRecords = documentSnapshot.get("queueRecords");
-                                    GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
-                                    String name = (String) documentSnapshot.get("name");
-                                    LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
-                                    StringBuilder stringBuilder = new StringBuilder();
-                                    stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
-                                    for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
-                                        getRecordsDate(stringBuilder, fields);
-                                    }
-                                    Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
-                                    marker.showInfoWindow();
-                                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
-                                } else {
-                                    Toast.makeText(getApplicationContext(), "Sorry...We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
-                                }
-                            });
+                    storeService.getById(placeId, documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            Object queueRecords = documentSnapshot.get("queueRecords");
+                            GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
+                            String name = (String) documentSnapshot.get("name");
+                            LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
+                            StringBuilder stringBuilder = new StringBuilder();
+                            stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
+                            for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
+                                getRecordsDate(stringBuilder, fields);
+                            }
+                            Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
+                            marker.showInfoWindow();
+                            map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Sorry...We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
+                        }
+                    });
                 });
                 return false;
             }
@@ -191,13 +199,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 stringBuilder.append(date).append(" ").append(":").append(" ").append(length).append(System.lineSeparator());
             }
 
-            // TODO: verificar se pode deletar este método
             @Override
             public boolean onQueryTextChange(String s) {
                 return false;
             }
         });
-        mapFragment.getMapAsync(this);
+
 
         //Create floating button.
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -205,19 +212,26 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         saveUser();
 
         //Retrieve user points.
-        db.collection("users").document(getDeviceId()).addSnapshotListener(new EventListener<DocumentSnapshot>() {
-            @Override
-            public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
-                if (documentSnapshot != null && documentSnapshot.exists()) {
-                    long points = (long) documentSnapshot.get("points");
-
-                    TextView totalPoints = (TextView) findViewById(R.id.total_points);
+        userService.listenForChanges(getDeviceId(), (EventListener<DocumentSnapshot>) (documentSnapshot, e) -> {
+            if (documentSnapshot != null && documentSnapshot.exists()) {
+                long points = (long) documentSnapshot.get("points");
+                levelEntity = levelService.getUserLevel(points);
+                TextView totalPoints = (TextView) findViewById(R.id.total_points);
+                // TODO: Verify why this is returning null
+                if (totalPoints != null) {
                     totalPoints.setText(String.valueOf(points));
-                    //TODO: CRIAR USER LAST LOGIN NO FIREBASE
-
                 }
+                //TODO: CRIAR USER LAST LOGIN NO FIREBASE
             }
         });
+    }
+
+    private void initializePlacesClient() {
+        //Construct a PlacesClient
+        Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
+        placesClient = Places.createClient(this);
+        //Construct a FusedLocationProviderClient.
+        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
     }
 
     //Set up the options menu.
@@ -225,6 +239,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.current_place_menu, menu);
         return true;
+    }
+
+    private int getLevelAvatarImage(LevelEntity level) {
+        switch (level.getDescription()) {
+            case "level 1":
+                return R.drawable.level1;
+            case "level 2":
+                return R.drawable.level2;
+            case "level 3":
+                return R.drawable.level3;
+            case "level 4":
+                return R.drawable.level4;
+            case "level 5":
+                return R.drawable.level5;
+        }
+        return 0;
     }
 
     //Handles a click on the menu option to get a place.
@@ -242,9 +272,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 // User chose the "Diamond" action, show a pop up message with total of points
                 AlertDialog.Builder level = new AlertDialog.Builder(MapsActivity.this);
                 LayoutInflater avatar = LayoutInflater.from(MapsActivity.this);
-                final View view = avatar.inflate(R.layout.custom_info_contents, null);
+                final View view = avatar.inflate(R.layout.avatar_dialog, null);
+                ImageView avatarImg = view.findViewById(R.id.img_level);
+                avatarImg.setImageResource(getLevelAvatarImage(levelEntity));
                 level.setView(view);
-                level.setNeutralButton("Well Done! You've achieved level 1.", (dialog, msg) -> {
+                level.setNeutralButton("Well Done! You've achieved " + levelEntity.getDescription(), (dialog, msg) -> {
                 });
 
                 level.show();
@@ -332,7 +364,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     //Prompts the user for permission to use the device location.
     private void getLocationPermission() {
-
         if (ContextCompat.checkSelfPermission(this.getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationPermissionGranted = true;
         } else {
@@ -410,32 +441,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         user.setDate(new Date());
         user.setPoints(0);
 
-        // Add a new document with a generated ID
-        db.collection("users").document(getDeviceId())
-                .set(user)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d("Adding user", "DocumentSnapshot added with ID: " + getDeviceId());
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.w("Adding user", "Error adding document", e);
-                    }
-                });
+        // Add a new user with a generated ID
+        userService.save(getDeviceId(), // device id
+                user, // user entity
+                e -> Log.d("Adding user", "DocumentSnapshot added with ID: " + getDeviceId()), // success listener
+                e -> Log.w("Adding user", "Error adding document", e)); // failure listener
     }
 
     //create store record
     private void saveUserInput(StoreDetails storeInput, int value) {
         //create queue record object
-        QueueRecord queueRecord = new QueueRecord();
+        QueueRecordEntity queueRecord = new QueueRecordEntity();
         queueRecord.setDate(new Date());
         queueRecord.setLength(value);
         queueRecord.setUserId(getDeviceId());
 
-        db.collection("users").document(getDeviceId()).update("points", FieldValue.increment(5));
+        userService.updateField(getDeviceId(), "points", FieldValue.increment(5));
 
         // Create a new store
         StoreEntity store = new StoreEntity();
@@ -446,41 +467,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         // store.setSecretKey("jd753");
         store.setQueueRecords(Collections.singletonList(queueRecord));
         //retrieve stores
-        db.collection(COLLECTION_STORES).document(storeInput.getId())
-                .get()
-                .addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                        if (task.isSuccessful()) {
-                            if (task.getResult() != null && task.getResult().exists()) {
-                                Log.i("Retrieving document", "Document already created");
-                                DocumentReference docRef = db.collection(COLLECTION_STORES).document(task.getResult().getId());
-                                // Atomically add a new queueuRecord to the "length" array field.
-                                docRef.update("queueRecords", FieldValue.arrayUnion(queueRecord));
-                            } else {
-                                // Add a new document with a generated ID
-                                db.collection(COLLECTION_STORES)
-                                        .document(storeInput.getId())
-                                        .set(store)
-                                        .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                            @Override
-                                            public void onSuccess(Void aVoid) {
-                                                Log.d("Adding store", "DocumentSnapshot added with ID: " + storeInput.getId());
-                                            }
-                                        })
-                                        .addOnFailureListener(new OnFailureListener() {
-                                            @Override
-                                            public void onFailure(@NonNull Exception e) {
-                                                Log.w("Adding store", "Error adding document", e);
-                                            }
-                                        });
-                            }
+        storeService.getById(storeInput.getId(), documentSnapshot -> {
+            if (documentSnapshot.exists()) {
+                Log.i("Retrieving document", "Document already created");
+                storeService.updateField(documentSnapshot.getId(), "queueRecords", FieldValue.arrayUnion(queueRecord));
+//                DocumentReference docRef = db.collection(COLLECTION_STORES).document(documentSnapshot.getId());
+//                // Atomically add a new queueuRecord to the "length" array field.
+//                docRef.update("queueRecords", FieldValue.arrayUnion(queueRecord));
+            } else {
 
-                        } else {
-                            Log.w("Retrieve Store", "Error getting documents.", task.getException());
-                        }
+                // Add a new store with a generated ID
+                storeService.update(storeInput.getId(), store, new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d("Adding store", "DocumentSnapshot added with ID: " + storeInput.getId());
                     }
                 });
+            }
+        });
     }
 
     //Display a pop-up message allowing the user to contribute to the App.

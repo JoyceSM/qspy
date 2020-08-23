@@ -46,8 +46,9 @@ dependencies {
     implementation 'com.google.android.gms:play-services-location:17.0.0' // Google Maps (firebase)
     implementation 'com.google.android.libraries.places:places:2.3.0'
     implementation 'androidx.navigation:navigation-fragment:2.3.0'
-    implementation 'androidx.navigation:navigation-ui:2.3.0'
-    implementation 'com.google.firebase:firebase-firestore:21.4.0'//floating button
+    implementation 'androidx.navigation:navigation-ui:2.3.0' // floating button
+    implementation 'com.google.firebase:firebase-firestore:21.4.0'// firebase - must be this version
+
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
     androidTestImplementation 'androidx.test.espresso:espresso-intents:3.2.0'

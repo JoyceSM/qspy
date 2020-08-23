@@ -7,7 +7,7 @@ public class UserEntity {
 
     private Date date;
     private int points;
-    private List<QueueSubscription> queueSubscribe;
+    private List<QueueSubscriptionEntity> queueSubscribe;
 
 
     public Date getDate() {
@@ -26,11 +26,11 @@ public class UserEntity {
         this.points = points;
     }
 
-    public List<QueueSubscription> getQueueSubscribe() {
+    public List<QueueSubscriptionEntity> getQueueSubscribe() {
         return queueSubscribe;
     }
 
-    public void setQueueSubscribe(List<QueueSubscription> queueSubscribe) {
+    public void setQueueSubscribe(List<QueueSubscriptionEntity> queueSubscribe) {
         this.queueSubscribe = queueSubscribe;
     }
 }

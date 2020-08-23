@@ -2,7 +2,7 @@ package ie.ait.qspy.firebase;
 
 import java.util.Date;
 
-public class QueueSubscription {
+public class QueueSubscriptionEntity {
 
     private Date date;
     private String storeId;

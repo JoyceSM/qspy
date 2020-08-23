@@ -1,6 +1,5 @@
 package ie.ait.qspy.firebase;
 
-import com.google.android.gms.maps.model.LatLng;
 import com.google.firebase.firestore.GeoPoint;
 
 import java.util.List;
@@ -14,7 +13,7 @@ public class StoreEntity {
     private String email;
     private String logo;
     private GeoPoint coordinates;
-    private List<QueueRecord> queueRecords;
+    private List<QueueRecordEntity> queueRecords;
 
     public String getName() {
         return name;
@@ -64,11 +63,11 @@ public class StoreEntity {
         this.logo = logo;
     }
 
-    public List<QueueRecord> getQueueRecords() {
+    public List<QueueRecordEntity> getQueueRecords() {
         return queueRecords;
     }
 
-    public void setQueueRecords(List<QueueRecord> queueRecords) {
+    public void setQueueRecords(List<QueueRecordEntity> queueRecords) {
         this.queueRecords = queueRecords;
     }
 

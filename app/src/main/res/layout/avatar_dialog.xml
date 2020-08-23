@@ -19,5 +19,12 @@
         android:layout_height="wrap_content"
         android:textColor="#ff7f7f7f" />
 
+    <ImageView
+        android:id="@+id/img_level"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:src="@drawable/level1" />
+
 
 </LinearLayout>
