@@ -1,4 +1,4 @@
-package ie.ait.qspy.firebase;
+package ie.ait.qspy.firebase.entities;
 
 import java.util.Date;
 import java.util.List;

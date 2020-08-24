@@ -23,6 +23,8 @@
     <string name="input">Report</string>
     <string name="search_location">Search"</string>
     <string name="points">Here is your bonus: 5 points </string>
+    <string name="title_activity_store">StoreActivity</string>
 
+    <string name="default_channel_id">qSpyChannel</string>
 
 </resources>

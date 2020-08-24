@@ -1,7 +1,5 @@
 package ie.ait.qspy;
 
-import android.provider.Settings;
-
 import androidx.annotation.NonNull;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -11,6 +9,7 @@ import androidx.core.content.ContextCompat;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -21,7 +20,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.NumberPicker;
 import android.widget.SearchView;
@@ -57,11 +55,12 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.Timestamp;
 
 import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import com.google.firebase.firestore.GeoPoint;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.iid.InstanceIdResult;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -73,17 +72,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import ie.ait.qspy.entity.StoreDetails;
-import ie.ait.qspy.firebase.LevelEntity;
-import ie.ait.qspy.firebase.QueueRecordEntity;
+import ie.ait.qspy.firebase.entities.StoreDetails;
+import ie.ait.qspy.firebase.entities.LevelEntity;
+import ie.ait.qspy.firebase.entities.QueueRecordEntity;
 
-import ie.ait.qspy.firebase.StoreEntity;
-import ie.ait.qspy.firebase.UserEntity;
+import ie.ait.qspy.firebase.entities.StoreEntity;
+import ie.ait.qspy.services.FirestoreService;
 import ie.ait.qspy.services.LevelService;
 import ie.ait.qspy.services.StoreService;
 import ie.ait.qspy.services.UserService;
+import ie.ait.qspy.utils.DeviceUtils;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleMap.OnInfoWindowClickListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
@@ -96,12 +96,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     //Used for selecting the current place.
     private static final int M_MAX_ENTRIES = 30;
 
+
     //Collections
     public static final String COLLECTION_STORES = "stores";
 
     private LevelService levelService = new LevelService();
     private UserService userService = new UserService();
     private StoreService storeService = new StoreService();
+
+    private String deviceId;
 
     private LevelEntity levelEntity;
 
@@ -124,12 +127,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     //Access a Cloud Firestore instance from MapActivity.
     private FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-    //Get device id.
-    @SuppressLint("HardwareIds")
-    private String getDeviceId() {
-        return Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-    }
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -140,7 +137,29 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         //Retrieve the content view that renders the map.
         setContentView(R.layout.activity_maps);
+
+        Intent serviceIntent = new Intent(this, FirestoreService.class);
+        this.startService(serviceIntent);
+
+        // Get firestore token ID
+        FirebaseInstanceId.getInstance().getInstanceId()
+                .addOnCompleteListener(task -> {
+                    if (!task.isSuccessful()) {
+                        Log.w(TAG, "getInstanceId failed", task.getException());
+                        return;
+                    }
+                    // Get new Instance ID token
+                    String token = task.getResult().getToken();
+                    // Log and toast
+                    Log.d(TAG, token);
+                    Toast.makeText(MapsActivity.this, token, Toast.LENGTH_SHORT).show();
+                });
+
+
         initializePlacesClient();
+
+        //Retrieve a unique device id.
+        deviceId = new DeviceUtils().getDeviceId(getContentResolver());
 
         //Search place.
         searchView = findViewById(R.id.search_location);
@@ -178,11 +197,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
                                 getRecordsDate(stringBuilder, fields);
                             }
+
                             Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
+                            marker.setTag(documentSnapshot);
                             marker.showInfoWindow();
                             map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
+                            //TODO: CREATE A BUTTON
+
                         } else {
-                            Toast.makeText(getApplicationContext(), "Sorry...We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(), "Sorry... We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
                         }
                     });
                 });
@@ -205,25 +228,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             }
         });
 
-
         //Create floating button.
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> showNearbyPlaces());
-        saveUser();
+    }
 
+    private void registerUserDataChangesListener() {
         //Retrieve user points.
-        userService.listenForChanges(getDeviceId(), (EventListener<DocumentSnapshot>) (documentSnapshot, e) -> {
+        userService.listenForChanges(deviceId, (documentSnapshot, e) -> {
             if (documentSnapshot != null && documentSnapshot.exists()) {
                 long points = (long) documentSnapshot.get("points");
                 levelEntity = levelService.getUserLevel(points);
-                TextView totalPoints = (TextView) findViewById(R.id.total_points);
-                // TODO: Verify why this is returning null
-                if (totalPoints != null) {
-                    totalPoints.setText(String.valueOf(points));
-                }
-                //TODO: CRIAR USER LAST LOGIN NO FIREBASE
+                TextView totalPoints = findViewById(R.id.total_points);
+                totalPoints.setText(String.valueOf(points));
             }
         });
+
     }
 
     private void initializePlacesClient() {
@@ -238,6 +258,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.current_place_menu, menu);
+        // This is called here as the menu needs to be ready
+        registerUserDataChangesListener();
         return true;
     }
 
@@ -314,17 +336,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public View getInfoContents(Marker marker) {
 
-                View infoWindow = getLayoutInflater().inflate(R.layout.custom_info_contents, (FrameLayout) findViewById(R.id.map), false);
+                View infoWindow = getLayoutInflater().inflate(R.layout.custom_info_contents, findViewById(R.id.map), false);
 
-                TextView title = (TextView) infoWindow.findViewById(R.id.title);
+                TextView title = infoWindow.findViewById(R.id.title);
                 title.setText(marker.getTitle());
 
-                TextView snippet = (TextView) infoWindow.findViewById(R.id.snippet);
+                TextView snippet = infoWindow.findViewById(R.id.snippet);
                 snippet.setText(marker.getSnippet());
 
                 return infoWindow;
             }
         });
+
+
+        map.setOnInfoWindowClickListener(this);
+
+
         //Prompt the user for permission.
         getLocationPermission();
         //Turn on the My Location layer and the related control on the map.
@@ -425,27 +452,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // The user has not granted permission.
             Log.i(TAG, "The user did not grant location permission.");
             // Add a default marker, because the user hasn't selected a place.
-            map.addMarker(new MarkerOptions()
+
+            MarkerOptions markerOptions = new MarkerOptions()
                     .title(getString(R.string.default_info_title))
                     .position(defaultLocation)
-                    .snippet(getString(R.string.default_info_snippet)));
+                    .snippet(getString(R.string.default_info_snippet));
+
+
+            map.addMarker(markerOptions);
             // Prompt the user for permission.
             getLocationPermission();
         }
-    }
-
-    //create user
-    private void saveUser() {
-        // Create a new user
-        UserEntity user = new UserEntity();
-        user.setDate(new Date());
-        user.setPoints(0);
-
-        // Add a new user with a generated ID
-        userService.save(getDeviceId(), // device id
-                user, // user entity
-                e -> Log.d("Adding user", "DocumentSnapshot added with ID: " + getDeviceId()), // success listener
-                e -> Log.w("Adding user", "Error adding document", e)); // failure listener
     }
 
     //create store record
@@ -454,9 +471,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         QueueRecordEntity queueRecord = new QueueRecordEntity();
         queueRecord.setDate(new Date());
         queueRecord.setLength(value);
-        queueRecord.setUserId(getDeviceId());
+        queueRecord.setUserId(deviceId);
 
-        userService.updateField(getDeviceId(), "points", FieldValue.increment(5));
+        userService.updateField(deviceId, "points", FieldValue.increment(5));
 
         // Create a new store
         StoreEntity store = new StoreEntity();
@@ -471,9 +488,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             if (documentSnapshot.exists()) {
                 Log.i("Retrieving document", "Document already created");
                 storeService.updateField(documentSnapshot.getId(), "queueRecords", FieldValue.arrayUnion(queueRecord));
-//                DocumentReference docRef = db.collection(COLLECTION_STORES).document(documentSnapshot.getId());
-//                // Atomically add a new queueuRecord to the "length" array field.
-//                docRef.update("queueRecords", FieldValue.arrayUnion(queueRecord));
             } else {
 
                 // Add a new store with a generated ID
@@ -559,10 +573,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.ID);
         // Use the builder to create a FindCurrentPlaceRequest.
         FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
-
         // Get the likely places - that is, the businesses and other points of interest that are the best match for the device's current location.
-
-
         return placesClient.findCurrentPlace(request);
     }
 
@@ -580,6 +591,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .snippet(markerSnippet));
         // Position the map's camera at the location of the marker.
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
+
     }
 
     //Updates the map's UI settings based on whether the user has granted location permission.
@@ -601,4 +613,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             Log.e("Exception: %s", e.getMessage());
         }
     }
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+        DocumentSnapshot doc = (DocumentSnapshot) marker.getTag();
+
+
+        new AlertDialog.Builder(MapsActivity.this)
+                .setTitle("Location")
+                .setMessage("Do you want to be notified?")
+                .setPositiveButton(R.string.yes, (dialog, which) -> {
+                    //select the current store
+                })
+                .setNegativeButton(R.string.no, (dialog, which) -> {
+                    //
+                })
+                .setIcon(android.R.drawable.ic_menu_compass)
+                .show();
+    }
+
 }

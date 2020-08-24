@@ -5,7 +5,7 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 
-import ie.ait.qspy.firebase.UserEntity;
+import ie.ait.qspy.firebase.entities.UserEntity;
 
 public class UserService extends AbstractService {
 

@@ -8,6 +8,8 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
+import ie.ait.qspy.firebase.entities.StoreDetails;
+
 import static org.junit.Assert.*;
 
 public class StoreDetailsTest {
@@ -17,7 +19,8 @@ public class StoreDetailsTest {
     @Before
     public void setUp() throws Exception {
         LatLng latLng = new LatLng(53.423579, -7.938644);
-        storeDetails = new StoreDetails("Marks & Spencer", "Town Centre, 51 Gleeson St, Athlone, Co. Westmeath", latLng, place.getId(), Arrays.asList("Marks & Spencer", "Town Centre, 51 Gleeson St, Athlone, Co. Westmeath"));
+        storeDetails = new StoreDetails("MS", "Marks & Spencer", "Town Centre, 51 Gleeson St, Athlone, Co. Westmeath", latLng, Arrays.asList("Marks & Spencer", "Town Centre, 51 Gleeson St, Athlone, Co. Westmeath"));
+
     }
 
     @After

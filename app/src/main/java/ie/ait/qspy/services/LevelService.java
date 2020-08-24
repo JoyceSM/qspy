@@ -5,7 +5,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 
-import ie.ait.qspy.firebase.LevelEntity;
+import ie.ait.qspy.firebase.entities.LevelEntity;
 
 public class LevelService extends AbstractService {
 

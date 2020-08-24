@@ -1,4 +1,4 @@
-package ie.ait.qspy.firebase;
+package ie.ait.qspy.firebase.entities;
 
 public class LevelEntity {
 

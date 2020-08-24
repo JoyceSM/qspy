@@ -1,4 +1,4 @@
-package ie.ait.qspy.entity;
+package ie.ait.qspy.firebase.entities;
 
 import com.google.android.gms.maps.model.LatLng;
 
