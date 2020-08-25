@@ -9,8 +9,6 @@
     -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -29,9 +27,7 @@
 
         <service
             android:name=".services.FirestoreService"
-            android:exported="false">
-        </service>
-
+            android:exported="false"></service>
 
         <activity android:name=".StoreActivity"></activity>
         <activity android:name=".MainActivity">
@@ -55,12 +51,13 @@
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="qSpyChannel"/>
+            android:value="qSpyChannel" />
 
         <activity
             android:name=".MapsActivity"
             android:label="@string/title_activity_maps"
             tools:ignore="Instantiatable" />
+
     </application>
 
 </manifest>

@@ -18,7 +18,7 @@ import com.github.appintro.model.SliderPage;
 import java.util.Date;
 
 import ie.ait.qspy.firebase.entities.UserEntity;
-import ie.ait.qspy.services.FirestoreService;
+
 import ie.ait.qspy.services.UserService;
 import ie.ait.qspy.utils.DeviceUtils;
 
@@ -63,6 +63,7 @@ public class MainActivity extends AppIntro {
                 e -> Log.w("Adding user", "Error adding document", e)); // failure listener
     }
 
+    //create introduction slides
     private void createSlides() {
         SliderPage page1 = new SliderPage();
         page1.setTitle("Getting started");
@@ -85,7 +86,7 @@ public class MainActivity extends AppIntro {
         SliderPage page3 = new SliderPage();
         page3.setTitle("Report queue length");
         page3.setDescription("Collaborate by reporting...so you can earn points and become eligible to receive exclusive offers from your favourite stores. Click done to start using the app!");
-        page3.setImageDrawable(R.drawable.report);
+        page3.setImageDrawable(R.drawable.map);
         page3.setTitleColor(getColor(R.color.colorSlide));
         page3.setDescriptionColor(getColor(R.color.colorSlide));
         page3.setBackgroundColor(getColor(R.color.colorPrimaryDark));
@@ -112,8 +113,5 @@ public class MainActivity extends AppIntro {
         finish();
         Intent mapIntent = new Intent(this, MapsActivity.class);
         startActivity(mapIntent);
-
     }
-
-
 }

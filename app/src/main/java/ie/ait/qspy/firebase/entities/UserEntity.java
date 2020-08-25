@@ -1,5 +1,6 @@
 package ie.ait.qspy.firebase.entities;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -7,7 +8,7 @@ public class UserEntity {
 
     private Date date;
     private int points;
-    private List<QueueSubscriptionEntity> queueSubscribe;
+    private List<QueueSubscriptionEntity> queueSubscriptions = new ArrayList<>();
 
 
     public Date getDate() {
@@ -26,12 +27,12 @@ public class UserEntity {
         this.points = points;
     }
 
-    public List<QueueSubscriptionEntity> getQueueSubscribe() {
-        return queueSubscribe;
+    public List<QueueSubscriptionEntity> getQueueSubscriptions() {
+        return queueSubscriptions;
     }
 
-    public void setQueueSubscribe(List<QueueSubscriptionEntity> queueSubscribe) {
-        this.queueSubscribe = queueSubscribe;
+    public void setQueueSubscriptions(List<QueueSubscriptionEntity> queueSubscriptions) {
+        this.queueSubscriptions = queueSubscriptions;
     }
 }
 

@@ -41,7 +41,7 @@ public class FirebaseMessageService extends FirebaseMessagingService {
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         NotificationCompat.Builder notificationBuilder =
                 new NotificationCompat.Builder(this, channelId)
-                        .setSmallIcon(R.drawable.ic_appintro_ripple)
+                        .setSmallIcon(R.drawable.bell)
                         .setContentTitle("Queue length change")
                         .setContentText(messageBody)
                         .setAutoCancel(true)

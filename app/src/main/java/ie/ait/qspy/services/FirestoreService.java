@@ -1,9 +1,7 @@
 package ie.ait.qspy.services;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -13,15 +11,21 @@ import android.os.IBinder;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.EventListener;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreException;
 
-import ie.ait.qspy.MainActivity;
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+
 import ie.ait.qspy.R;
+import ie.ait.qspy.utils.DeviceUtils;
 
 public class FirestoreService extends Service {
+
+    private long currentPoints = 0;
+    private boolean firstAccess = true;
 
     @Nullable
     @Override
@@ -29,45 +33,53 @@ public class FirestoreService extends Service {
         return null;
     }
 
-
     @Override
     public void onCreate() {
         super.onCreate();
-        // TODO: Listener should be on user? When a new subscription is added, we add a subscription for each store
-        FirebaseFirestore.getInstance().collection("stores")
-                .document("ChIJ3ymQ_wBJXEgRJIhXuoBarNo")
-                .addSnapshotListener((documentSnapshot, e) -> {
-                    postNotif(documentSnapshot.getId());
+        String deviceId = new DeviceUtils().getDeviceId(getContentResolver());
+        FirebaseFirestore.getInstance().collection("users")
+                .document(deviceId) // we create a listener for changes so we can update the list of subscriptions once it changes
+                .addSnapshotListener((userDocument, e) -> {
+                    long actualPoints = (long) userDocument.get("points");
+                    if(actualPoints > currentPoints && !firstAccess) { // we just want the code to proceed if the changes are on the subscribed store (not points!). point related changes will be ignored
+                        currentPoints = actualPoints;
+                        return;
+                    }
+                    firstAccess = false;
+                    List<HashMap<String, Object>> subscriptionList = (List<HashMap<String, Object>>) userDocument.get("queueSubscription");
+                    if(subscriptionList == null || subscriptionList.isEmpty()) {
+                        return;
+                    }
+                    for (HashMap<String, Object> subscription : subscriptionList) {
+                        FirebaseFirestore.getInstance().collection("stores")
+                                .document((String) subscription.get("storeId"))
+                                .addSnapshotListener((storeDocument, e1) -> { // for each subscribed store, we add a new listener (so we get notified when there are new queue reports)
+                            if (storeDocument.getMetadata().isFromCache()) { // this skips the listener for the first time (this will allow us to listen only to new changes, not the current ones)
+                                return;
+                            }
+                            String storeName = (String) storeDocument.get("name");
+                            List<HashMap<String, Object>> queueRecords = (List<HashMap<String, Object>>) storeDocument.get("queueRecords");
+                            HashMap<String, Object> queueRecord = queueRecords.get(queueRecords.size() - 1);
+                            sendNotification(storeName, (Long) queueRecord.get("length"), (Timestamp) queueRecord.get("date"));
+                        });
+                    }
                 });
     }
 
-    private void postNotif(String notifString) {
-        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        int icon = R.drawable.ic_appintro_ripple;
-//        Notification notification = new Notification(icon, "Firebase" + Math.random(), System.currentTimeMillis());
-//		notification.flags |= Notification.FLAG_AUTO_CANCEL;
-        Context context = getApplicationContext();
-        CharSequence contentTitle = "Background" + Math.random();
-        Intent notificationIntent = new Intent(context, MainActivity.class);
-        PendingIntent contentIntent = PendingIntent.getActivity(context, 0, notificationIntent, 0);
-//        notification.setLatestEventInfo(context, contentTitle, notifString, contentIntent);
-        NotificationCompat.Builder notificationBuilder =
-                new NotificationCompat.Builder(this, getString(R.string.default_channel_id))
-                        .setSmallIcon(R.drawable.ic_appintro_ripple)
-                        .setContentTitle("Queue length change")
-                        .setContentText("Test")
-                        .setAutoCancel(true);
-//                        .setSound(defaultSoundUri)
-//                        .setContentIntent(pendingIntent);
+    private void sendNotification(String storeName, Long length, Timestamp date) {
+        String formattedDate = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(date.toDate());
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        String channelId = getString(R.string.default_channel_id);
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(R.drawable.bell)
+                .setContentTitle("Queue length change for store " + storeName)
+                .setContentText("New report at " + formattedDate + ": " + length + " people in the queue")
+                .setAutoCancel(true);
 
-        // Since android Oreo notification channel is needed.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(getString(R.string.default_channel_id),
-                    "Channel human readable title",
-                    NotificationManager.IMPORTANCE_DEFAULT);
-            mNotificationManager.createNotificationChannel(channel);
+            NotificationChannel channel = new NotificationChannel(channelId, "Channel human readable title", NotificationManager.IMPORTANCE_DEFAULT);
+            notificationManager.createNotificationChannel(channel);
         }
-
-        mNotificationManager.notify(0, notificationBuilder.build());
+        notificationManager.notify(0, notificationBuilder.build());
     }
 }
