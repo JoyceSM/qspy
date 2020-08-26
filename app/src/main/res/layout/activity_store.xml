@@ -39,7 +39,7 @@
 
 
         <Button
-            android:id="@+id/reports"
+            android:id="@+id/btn_reports"
             android:layout_width="140dp"
             android:layout_height="60dp"
             android:layout_marginTop="20dp"
@@ -48,7 +48,7 @@
             android:text="Reports" />
 
         <Button
-            android:id="@+id/offers"
+            android:id="@+id/btn_offers"
             android:layout_width="140dp"
             android:layout_height="60dp"
             android:layout_marginTop="20dp"

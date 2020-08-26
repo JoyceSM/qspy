@@ -6,6 +6,8 @@ import androidx.preference.PreferenceManager;
 import android.content.Intent;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -32,21 +34,23 @@ public class MainActivity extends AppIntro {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getSupportActionBar().setTitle("");
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#2c5aa0")));
         //Retrieve a unique device id.
         deviceId = new DeviceUtils().getDeviceId(getContentResolver());
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        if (!prefs.getBoolean("firstTime", false)) {
+//        if (!prefs.getBoolean("firstTime", false)) {
             createSlides();
             saveUser();
             SharedPreferences.Editor editor = prefs.edit();
             editor.putBoolean("firstTime", true);
             editor.apply();
 
-        } else {
-            openMapsActivity();
-
-        }
+//        } else {
+//            openMapsActivity();
+//
+//        }
 
     }
 

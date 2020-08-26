@@ -41,27 +41,30 @@ public class FirestoreService extends Service {
                 .document(deviceId) // we create a listener for changes so we can update the list of subscriptions once it changes
                 .addSnapshotListener((userDocument, e) -> {
                     long actualPoints = (long) userDocument.get("points");
-                    if(actualPoints > currentPoints && !firstAccess) { // we just want the code to proceed if the changes are on the subscribed store (not points!). point related changes will be ignored
+                    if (actualPoints > currentPoints && !firstAccess) { // we just want the code to proceed if the changes are on the subscribed store (not points!). point related changes will be ignored
                         currentPoints = actualPoints;
                         return;
                     }
                     firstAccess = false;
                     List<HashMap<String, Object>> subscriptionList = (List<HashMap<String, Object>>) userDocument.get("queueSubscription");
-                    if(subscriptionList == null || subscriptionList.isEmpty()) {
+                    if (subscriptionList == null || subscriptionList.isEmpty()) {
                         return;
                     }
                     for (HashMap<String, Object> subscription : subscriptionList) {
+
                         FirebaseFirestore.getInstance().collection("stores")
                                 .document((String) subscription.get("storeId"))
                                 .addSnapshotListener((storeDocument, e1) -> { // for each subscribed store, we add a new listener (so we get notified when there are new queue reports)
-                            if (storeDocument.getMetadata().isFromCache()) { // this skips the listener for the first time (this will allow us to listen only to new changes, not the current ones)
-                                return;
-                            }
-                            String storeName = (String) storeDocument.get("name");
-                            List<HashMap<String, Object>> queueRecords = (List<HashMap<String, Object>>) storeDocument.get("queueRecords");
-                            HashMap<String, Object> queueRecord = queueRecords.get(queueRecords.size() - 1);
-                            sendNotification(storeName, (Long) queueRecord.get("length"), (Timestamp) queueRecord.get("date"));
-                        });
+                                    if (storeDocument.getMetadata().isFromCache()) { // this skips the listener for the first time (this will allow us to listen only to new changes, not the current ones)
+                                        return;
+                                    }
+                                    String storeName = (String) storeDocument.get("name");
+                                    List<HashMap<String, Object>> queueRecords = (List<HashMap<String, Object>>) storeDocument.get("queueRecords");
+                                    if (queueRecords != null) {
+                                        HashMap<String, Object> queueRecord = queueRecords.get(queueRecords.size() - 1);
+                                        sendNotification(storeName, (Long) queueRecord.get("length"), (Timestamp) queueRecord.get("date"));
+                                    }
+                                });
                     }
                 });
     }

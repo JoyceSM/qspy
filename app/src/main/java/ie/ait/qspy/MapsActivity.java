@@ -2,6 +2,7 @@ package ie.ait.qspy;
 
 import androidx.annotation.NonNull;
 
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -11,6 +12,8 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.location.Location;
 import android.os.Bundle;
 
@@ -121,6 +124,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private GoogleMap map;
 
+    private Marker reportMarker;
+
     private SearchView searchView;
 
     //Access a Cloud Firestore instance from MapActivity.
@@ -161,6 +166,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapFragment.getMapAsync(this);
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+
             @Override
             public boolean onQueryTextSubmit(String s) {
                 String searchInput = searchView.getQuery().toString();
@@ -175,27 +181,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
                 autocompletePredictions.addOnSuccessListener(findAutocompletePredictionsResponse -> {
                     List<AutocompletePrediction> prediction = findAutocompletePredictionsResponse.getAutocompletePredictions();
-                    // TODO: Maybe show a dialog here with the options available
+
                     AutocompletePrediction autocompletePrediction = prediction.get(0);
                     //retrieve the store if exist
                     String placeId = autocompletePrediction.getPlaceId();
+
                     storeService.getById(placeId, documentSnapshot -> {
                         if (documentSnapshot.exists()) {
-                            Object queueRecords = documentSnapshot.get("queueRecords");
+                            List<Map<String, Object>> queueRecords = (List<Map<String, Object>>) documentSnapshot.get("queueRecords");
                             GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
                             String name = (String) documentSnapshot.get("name");
                             LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
                             StringBuilder stringBuilder = new StringBuilder();
                             stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
-                            for (Map<String, Object> fields : (List<Map<String, Object>>) queueRecords) {
-                                getRecordsDate(stringBuilder, fields);
-                            }
-                            Marker marker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
-                            marker.setTag(documentSnapshot);
-                            marker.showInfoWindow();
-                            map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
-                            //TODO: CREATE A BUTTON
+                            int count = Math.max(queueRecords.size() - 3, 0);
+                            for (int i = queueRecords.size() - 1; i >= count; i--) {
+                                getRecordsDate(stringBuilder, queueRecords.get(i));
 
+                            }
+
+                            removeMarker();
+
+                            reportMarker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
+                            reportMarker.setTag(documentSnapshot);
+                            reportMarker.showInfoWindow();
+
+                            map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
                         } else {
                             Toast.makeText(getApplicationContext(), "Sorry... We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
                         }
@@ -225,6 +236,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         fab.setOnClickListener(view -> showNearbyPlaces());
     }
 
+    private void removeMarker() {
+        if (reportMarker != null) {
+            reportMarker.hideInfoWindow();
+            reportMarker.remove();
+        }
+    }
+
     //Retrieve user points.
     private void registerUserDataChangesListener() {
         userService.listenForChanges(deviceId, (documentSnapshot, e) -> {
@@ -249,6 +267,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.current_place_menu, menu);
+        getSupportActionBar().setHomeAsUpIndicator(R.drawable.logo_small);// set drawable icon
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setTitle("");
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#2c5aa0")));
+
         // This is called here as the menu needs to be ready
         registerUserDataChangesListener();
         return true;
@@ -451,15 +474,19 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                         StoreDetails store = new StoreDetails(place.getId(), place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
                                         selectPlaceOnMap(store);
                                         showQueueInputDialog(store);
+
                                     }
+
                                 })
                                 .setNegativeButton(R.string.no, new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int which) {
                                         filterStoresAndShowPlacesDialog(likelyPlaces);
+
                                     }
                                 })
                                 .setIcon(R.drawable.marker)
                                 .show();
+
                     } else {
                         Log.e(TAG, "Exception: %s", task.getException());
                     }
@@ -469,11 +496,16 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // The user has not granted permission.
             Log.i(TAG, "The user did not grant location permission.");
             // Add a default marker, because the user hasn't selected a place.
+
             MarkerOptions markerOptions = new MarkerOptions()
                     .title(getString(R.string.default_info_title))
                     .position(defaultLocation)
                     .snippet(getString(R.string.default_info_snippet));
-            map.addMarker(markerOptions);
+
+
+            removeMarker();
+            reportMarker = map.addMarker(markerOptions);
+
             // Prompt the user for permission.
             getLocationPermission();
         }
@@ -536,7 +568,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
                 Toast.makeText(getApplicationContext(), "Cancel Pressed", Toast.LENGTH_LONG).show();
-                finish();
             }
         });
         builder.show();
@@ -565,7 +596,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 showQueueInputDialog(store);
             }
         };
-
+        map.clear();
         String[] names = storeDetailsList
                 .stream() // Calls the stream API
                 .map(StoreDetails::getName) // Perform a transformation using the map method
@@ -595,8 +626,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             markerSnippet = markerSnippet + "\n" + store.getAttributions();
 
         }
+
+        removeMarker();
+
         // Add a marker for the selected place, with an info window showing information about that place.
-        map.addMarker(new MarkerOptions()
+        reportMarker = map.addMarker(new MarkerOptions()
                 .title(store.getName())
                 .position(markerLatLng)
                 .snippet(markerSnippet));

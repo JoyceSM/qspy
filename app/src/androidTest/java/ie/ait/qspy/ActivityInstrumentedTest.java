@@ -43,8 +43,8 @@ public class ActivityInstrumentedTest {
         assertEquals("com.example.qspy", appContext.getPackageName());
     }
 
-    @Test
-    public void openWindow() {
-        onView(withId(R.id.getStarted)).perform(click());
-    }
+//    @Test
+//    public void openWindow() {
+//        onView(withId(R.id.getStarted)).perform(click());
+//    }
 }
