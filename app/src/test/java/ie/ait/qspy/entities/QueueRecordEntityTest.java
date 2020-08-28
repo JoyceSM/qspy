@@ -1,11 +1,9 @@
-package ie.ait.qspy.firebase;
+package ie.ait.qspy.entities;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Date;
-
-import ie.ait.qspy.firebase.entities.QueueRecordEntity;
 
 import static org.junit.Assert.*;
 
@@ -14,7 +12,7 @@ public class QueueRecordEntityTest {
     private QueueRecordEntity queueRecord;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         queueRecord = new QueueRecordEntity();
 
     }

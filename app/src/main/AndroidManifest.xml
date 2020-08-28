@@ -29,7 +29,10 @@
             android:name=".services.FirestoreService"
             android:exported="false"></service>
 
+        <activity android:name=".OfferActivity"></activity>
+
         <activity android:name=".StoreActivity"></activity>
+
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

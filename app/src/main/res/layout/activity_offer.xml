@@ -37,32 +37,37 @@
             android:gravity="center"
             android:textAppearance="?android:attr/textAppearanceLarge" />
 
+        <EditText
+            android:id="@+id/offer_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:id="@+id/select_level"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="@string/select_level"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <Spinner
+            android:id="@+id/levels_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
 
         <Button
-            android:id="@+id/btn_reports"
-            android:layout_width="140dp"
-            android:layout_height="60dp"
+            android:id="@+id/btn_send"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:layout_marginEnd="140dp"
-            android:drawableStart="@drawable/report"
-            android:text="@string/reports" />
+            android:text="@string/send" />
 
-        <Button
-            android:id="@+id/btn_offers"
-            android:layout_width="140dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="20dp"
-            android:layout_marginEnd="140dp"
-            android:drawableStart="@drawable/offer"
-            android:text="@string/offers" />
 
-        <Button
-            android:id="@+id/btn_signOut"
-            android:layout_width="140dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="20dp"
-            android:layout_marginEnd="140dp"
-            android:drawableStart="@drawable/logout"
-            android:text="@string/sign_out" />
     </LinearLayout>
 </ScrollView>

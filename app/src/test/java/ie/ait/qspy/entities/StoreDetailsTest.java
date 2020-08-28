@@ -1,4 +1,4 @@
-package ie.ait.qspy.entity;
+package ie.ait.qspy.entities;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -8,7 +8,7 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import ie.ait.qspy.firebase.entities.StoreDetails;
+import ie.ait.qspy.entities.StoreDetails;
 
 import static org.junit.Assert.*;
 

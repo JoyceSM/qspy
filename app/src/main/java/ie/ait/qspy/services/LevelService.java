@@ -5,14 +5,14 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 
-import ie.ait.qspy.firebase.entities.LevelEntity;
+import ie.ait.qspy.entities.LevelEntity;
 
 public class LevelService extends AbstractService {
 
     private List<LevelEntity> levels = new ArrayList<>();
 
     public LevelService() {
-        //create level
+        //Create level.
         getDatabase().collection("level").get().addOnSuccessListener(queryDocumentSnapshots -> {
             List<DocumentSnapshot> documents = queryDocumentSnapshots.getDocuments();
             for (DocumentSnapshot doc : documents) {
@@ -25,7 +25,6 @@ public class LevelService extends AbstractService {
     public LevelEntity getUserLevel(Long points) {
 
         if (levels.isEmpty()) {
-//            throw new RuntimeException("Levels is not populated yet.");
             return null;
         }
 
@@ -33,11 +32,8 @@ public class LevelService extends AbstractService {
             if (points >= level.getRangeStart() && points <= level.getRangeEnd()) {
 
                 return level;
-
             }
         }
         return null;
     }
-
-
 }

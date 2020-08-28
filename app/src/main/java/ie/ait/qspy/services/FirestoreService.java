@@ -38,10 +38,10 @@ public class FirestoreService extends Service {
         super.onCreate();
         String deviceId = new DeviceUtils().getDeviceId(getContentResolver());
         FirebaseFirestore.getInstance().collection("users")
-                .document(deviceId) // we create a listener for changes so we can update the list of subscriptions once it changes
+                .document(deviceId) //Create a listener for changes so the list of subscriptions is updated once it changes.
                 .addSnapshotListener((userDocument, e) -> {
                     long actualPoints = (long) userDocument.get("points");
-                    if (actualPoints > currentPoints && !firstAccess) { // we just want the code to proceed if the changes are on the subscribed store (not points!). point related changes will be ignored
+                    if (actualPoints > currentPoints && !firstAccess) { //Check if the changes are on the subscribed store (not points!).
                         currentPoints = actualPoints;
                         return;
                     }
@@ -54,8 +54,8 @@ public class FirestoreService extends Service {
 
                         FirebaseFirestore.getInstance().collection("stores")
                                 .document((String) subscription.get("storeId"))
-                                .addSnapshotListener((storeDocument, e1) -> { // for each subscribed store, we add a new listener (so we get notified when there are new queue reports)
-                                    if (storeDocument.getMetadata().isFromCache()) { // this skips the listener for the first time (this will allow us to listen only to new changes, not the current ones)
+                                .addSnapshotListener((storeDocument, e1) -> { //for each subscribed store, a new listener is added (the user get notified when there are new queue reports)
+                                    if (storeDocument.getMetadata().isFromCache()) { //this skips the listener for the first time (this will allow us to listen only to new changes, not the current ones)
                                         return;
                                     }
                                     String storeName = (String) storeDocument.get("name");
@@ -68,7 +68,7 @@ public class FirestoreService extends Service {
                     }
                 });
     }
-
+    //Create send notification.
     private void sendNotification(String storeName, Long length, Timestamp date) {
         String formattedDate = new SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(date.toDate());
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);

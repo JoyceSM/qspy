@@ -2,7 +2,6 @@ package ie.ait.qspy;
 
 import androidx.annotation.NonNull;
 
-import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -19,11 +18,13 @@ import android.os.Bundle;
 
 import android.text.InputType;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.NumberPicker;
@@ -77,12 +78,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import ie.ait.qspy.firebase.entities.QueueSubscriptionEntity;
-import ie.ait.qspy.firebase.entities.StoreDetails;
-import ie.ait.qspy.firebase.entities.LevelEntity;
-import ie.ait.qspy.firebase.entities.QueueRecordEntity;
+import ie.ait.qspy.entities.QueueSubscriptionEntity;
+import ie.ait.qspy.entities.StoreDetails;
+import ie.ait.qspy.entities.LevelEntity;
+import ie.ait.qspy.entities.QueueRecordEntity;
 
-import ie.ait.qspy.firebase.entities.StoreEntity;
+import ie.ait.qspy.entities.StoreEntity;
 import ie.ait.qspy.services.FirestoreService;
 import ie.ait.qspy.services.LevelService;
 import ie.ait.qspy.services.StoreService;
@@ -101,8 +102,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final String KEY_LOCATION = "location";
     //Used for selecting the current place.
     private static final int M_MAX_ENTRIES = 30;
-    //Collections
-    public static final String COLLECTION_STORES = "stores";
 
     private LevelService levelService = new LevelService();
     private UserService userService = new UserService();
@@ -110,6 +109,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private String deviceId;
 
+    private long currentPoints;
     private LevelEntity levelEntity;
 
     private CameraPosition cameraPosition;
@@ -144,7 +144,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Intent serviceIntent = new Intent(this, FirestoreService.class);
         this.startService(serviceIntent);
 
-        // Get firestore token ID
+        //Get firestore token ID
         FirebaseInstanceId.getInstance().getInstanceId()
                 .addOnCompleteListener(task -> {
                     if (!task.isSuccessful()) {
@@ -169,60 +169,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             @Override
             public boolean onQueryTextSubmit(String s) {
-                String searchInput = searchView.getQuery().toString();
-
-                if (searchInput.equals("")) {
-                    return false;
-                }
-                FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
-                        .setQuery(searchInput)
-                        .setCountry("IE").build();
-                Task<FindAutocompletePredictionsResponse> autocompletePredictions = placesClient.findAutocompletePredictions(request);
-
-                autocompletePredictions.addOnSuccessListener(findAutocompletePredictionsResponse -> {
-                    List<AutocompletePrediction> prediction = findAutocompletePredictionsResponse.getAutocompletePredictions();
-
-                    AutocompletePrediction autocompletePrediction = prediction.get(0);
-                    //retrieve the store if exist
-                    String placeId = autocompletePrediction.getPlaceId();
-
-                    storeService.getById(placeId, documentSnapshot -> {
-                        if (documentSnapshot.exists()) {
-                            List<Map<String, Object>> queueRecords = (List<Map<String, Object>>) documentSnapshot.get("queueRecords");
-                            GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
-                            String name = (String) documentSnapshot.get("name");
-                            LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
-                            StringBuilder stringBuilder = new StringBuilder();
-                            stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
-                            int count = Math.max(queueRecords.size() - 3, 0);
-                            for (int i = queueRecords.size() - 1; i >= count; i--) {
-                                getRecordsDate(stringBuilder, queueRecords.get(i));
-
-                            }
-
-                            removeMarker();
-
-                            reportMarker = map.addMarker(new MarkerOptions().position(latLng).title(name).snippet(stringBuilder.toString()));
-                            reportMarker.setTag(documentSnapshot);
-                            reportMarker.showInfoWindow();
-
-                            map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
-                        } else {
-                            Toast.makeText(getApplicationContext(), "Sorry... We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
-                        }
-                    });
-                });
-                return false;
-            }
-
-            //Convert the timestamp to date.
-            private void getRecordsDate(StringBuilder stringBuilder, Map<String, Object> fields) {
-                long length = (long) fields.get("length");
-                String pattern = "dd-MM HH:mm";
-                Timestamp timestamp = (Timestamp) fields.get("date");
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern, Locale.getDefault());
-                String date = simpleDateFormat.format(timestamp.toDate());
-                stringBuilder.append(date).append(" ").append(":").append(" ").append(length).append(System.lineSeparator());
+                return onSearchStore();
             }
 
             @Override
@@ -236,6 +183,61 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         fab.setOnClickListener(view -> showNearbyPlaces());
     }
 
+    private boolean onSearchStore() {
+        String searchInput = searchView.getQuery().toString();
+
+        if (searchInput.equals("")) {
+            return false;
+        }
+        FindAutocompletePredictionsRequest request = FindAutocompletePredictionsRequest.builder()
+                .setQuery(searchInput)
+                .setCountry("IE").build();
+        Task<FindAutocompletePredictionsResponse> autocompletePredictions = placesClient.findAutocompletePredictions(request);
+
+        autocompletePredictions.addOnSuccessListener(findAutocompletePredictionsResponse -> {
+            List<AutocompletePrediction> prediction = findAutocompletePredictionsResponse.getAutocompletePredictions();
+
+            AutocompletePrediction autocompletePrediction = prediction.get(0);
+            //Retrieve the store if exist
+            String placeId = autocompletePrediction.getPlaceId();
+
+            storeService.getById(placeId, documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    List<Map<String, Object>> queueRecords = (List<Map<String, Object>>) documentSnapshot.get("queueRecords");
+                    GeoPoint coordinates = documentSnapshot.getGeoPoint("coordinates");
+                    String name = (String) documentSnapshot.get("name");
+                    LatLng latLng = new LatLng(coordinates.getLatitude(), coordinates.getLongitude());
+                    StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("Number of people in the queue reported:").append(System.lineSeparator());
+                    int count = Math.max(queueRecords.size() - 3, 0);
+                    for (int i = queueRecords.size() - 1; i >= count; i--) {
+                        getRecordsDate(stringBuilder, queueRecords.get(i));
+
+                    }
+
+                    reportMarker = addMarker(name, stringBuilder.toString(), latLng);
+                    reportMarker.setTag(documentSnapshot);
+                    reportMarker.showInfoWindow();
+
+                    map.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17));
+                } else {
+                    Toast.makeText(getApplicationContext(), "Sorry... We haven't received reports for this store yet!", Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+        return false;
+    }
+
+    //Convert the timestamp to date.
+    private void getRecordsDate(StringBuilder stringBuilder, Map<String, Object> fields) {
+        long length = (long) fields.get("length");
+        String pattern = "dd-MM HH:mm";
+        Timestamp timestamp = (Timestamp) fields.get("date");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern, Locale.getDefault());
+        String date = simpleDateFormat.format(timestamp.toDate());
+        stringBuilder.append(date).append(" ").append(":").append(" ").append(length).append(System.lineSeparator());
+    }
+
     private void removeMarker() {
         if (reportMarker != null) {
             reportMarker.hideInfoWindow();
@@ -247,10 +249,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void registerUserDataChangesListener() {
         userService.listenForChanges(deviceId, (documentSnapshot, e) -> {
             if (documentSnapshot != null && documentSnapshot.exists()) {
-                long points = (long) documentSnapshot.get("points");
-                levelEntity = levelService.getUserLevel(points);
+                currentPoints = (long) documentSnapshot.get("points");
+                levelEntity = levelService.getUserLevel(currentPoints);
                 TextView totalPoints = findViewById(R.id.total_points);
-                totalPoints.setText(String.valueOf(points));
+                totalPoints.setText(String.valueOf(currentPoints));
+                Log.d(TAG, "Level successfully loaded");
             }
         });
     }
@@ -272,12 +275,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         getSupportActionBar().setTitle("");
         getSupportActionBar().setBackgroundDrawable(new ColorDrawable(Color.parseColor("#2c5aa0")));
 
-        // This is called here as the menu needs to be ready
+        //This is called here as the menu needs to be ready
         registerUserDataChangesListener();
         return true;
     }
 
-    //retrieve avatar level.
+    //Retrieve avatar level.
     private int getLevelAvatarImage(LevelEntity level) {
         switch (level.getDescription()) {
             case "level 1":
@@ -304,55 +307,59 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 showNearbyPlaces();
                 return true;
             case R.id.store_access:
-                // User choose the "Store Access" item, show the store functionality.
-                AlertDialog access = new AlertDialog.Builder(MapsActivity.this).create();
-                access.setTitle("Access Control");
-                final EditText input = new EditText(this);
-                input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-                access.setView(input);
-                access.setButton(AlertDialog.BUTTON_POSITIVE, "OK", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-                        db.collection("access").whereEqualTo("secretKey", input.getText().toString()).get().addOnSuccessListener(new OnSuccessListener<QuerySnapshot>() {
-
-                            @Override
-                            public void onSuccess(QuerySnapshot queryDocumentSnapshots) {
-                                if (!queryDocumentSnapshots.isEmpty()) {
-                                    DocumentSnapshot documentSnapshot = queryDocumentSnapshots.getDocuments().get(0);
-                                    Intent storeIntent = new Intent(MapsActivity.this, StoreActivity.class);
-                                    storeIntent.putExtra("storeId", (String) documentSnapshot.get("storeId"));
-                                    startActivity(storeIntent);
-                                } else {
-                                    Toast.makeText(getApplicationContext(), "Your secret key is incorrect. Please try again!", Toast.LENGTH_LONG).show();
-                                }
-                            }
-                        });
-                    }
-                });
-                access.setButton(AlertDialog.BUTTON_NEGATIVE, "CANCEL", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Toast.makeText(getApplicationContext(), "You clicked on CANCEL", Toast.LENGTH_LONG).show();
-                        dialog.cancel();
-                    }
-                });
-                access.show();
+                onStoreAccessClick();
                 return true;
             case R.id.level:
-                // User choose the "Trophy" icon, show a pop-up message with a avatar level.
-                AlertDialog.Builder level = new AlertDialog.Builder(MapsActivity.this);
-                LayoutInflater avatar = LayoutInflater.from(MapsActivity.this);
-                final View view = avatar.inflate(R.layout.avatar_dialog, null);
-                ImageView avatarImg = view.findViewById(R.id.img_level);
-                avatarImg.setImageResource(getLevelAvatarImage(levelEntity));
-                level.setView(view);
-                level.setNeutralButton("Well Done! You've achieved " + levelEntity.getDescription(), (dialog, msg) -> {
-                });
-                level.show();
+                onLevelClick();
                 return true;
             default:
                 //The user's action was not recognized.
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void onLevelClick() {
+        //User click on the "diamond" icon, it shows a pop-up message with an avatar level.
+        AlertDialog.Builder dialogLevel = new AlertDialog.Builder(MapsActivity.this);
+        LayoutInflater avatar = LayoutInflater.from(MapsActivity.this);
+        final View view = avatar.inflate(R.layout.avatar_dialog, null);
+        ImageView avatarImg = view.findViewById(R.id.img_level);
+        TextView title = view.findViewById(R.id.avatar_title);
+
+        title.setText("You are in " + levelEntity.getDescription());
+        AlertDialog alertDialog = dialogLevel.create();
+        Button btnClose = view.findViewById(R.id.btn_close);
+        btnClose.setOnClickListener(view1 -> alertDialog.dismiss());
+
+        avatarImg.setImageResource(getLevelAvatarImage(levelEntity));
+        alertDialog.setView(view);
+        alertDialog.show();
+    }
+
+    private void onStoreAccessClick() {
+        // User choose the "Store Access" item, show the store functionality.
+        AlertDialog access = new AlertDialog.Builder(MapsActivity.this).create();
+        access.setTitle("Access Control");
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        access.setView(input);
+        access.setButton(AlertDialog.BUTTON_POSITIVE, "OK", (dialog, which) -> db.collection("access")
+                .whereEqualTo("secretKey", input.getText().toString()).get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        DocumentSnapshot documentSnapshot = queryDocumentSnapshots.getDocuments().get(0);
+                        Intent storeIntent = new Intent(MapsActivity.this, StoreActivity.class);
+                        storeIntent.putExtra("storeId", (String) documentSnapshot.get("storeId"));
+                        startActivity(storeIntent);
+                    } else {
+                        Toast.makeText(getApplicationContext(), "Your secret key is incorrect. Please try again!", Toast.LENGTH_LONG).show();
+                    }
+                }));
+        access.setButton(AlertDialog.BUTTON_NEGATIVE, "CANCEL", (dialog, which) -> {
+            Toast.makeText(getApplicationContext(), "You clicked on cancel", Toast.LENGTH_LONG).show();
+            dialog.cancel();
+        });
+        access.show();
     }
 
     //If Google Play services is not installed on the device, the user will be prompted to install it inside the SupportMapFragment.
@@ -457,61 +464,43 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         if (locationPermissionGranted) {
             final Task<FindCurrentPlaceResponse> placeResult = retrieveCurrentPlaces();
-            placeResult.addOnCompleteListener(new OnCompleteListener<FindCurrentPlaceResponse>() {
-                @Override
-                public void onComplete(@NonNull Task<FindCurrentPlaceResponse> task) {
-                    if (task.isSuccessful() && task.getResult() != null) {
-                        final FindCurrentPlaceResponse likelyPlaces = task.getResult();
-                        final Place place = likelyPlaces.getPlaceLikelihoods().get(0).getPlace();
-                        final String storeName = place.getName();
-                        Log.i("Place Id", String.valueOf(place.getId()));
-                        new AlertDialog.Builder(MapsActivity.this)
-                                .setTitle("Location")
-                                .setMessage(getString(R.string.are_you_in_the_store_name, storeName))
-                                .setPositiveButton(R.string.yes, new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        //select the current store
-                                        StoreDetails store = new StoreDetails(place.getId(), place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
-                                        selectPlaceOnMap(store);
-                                        showQueueInputDialog(store);
+            placeResult.addOnCompleteListener(task -> {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    final FindCurrentPlaceResponse likelyPlaces = task.getResult();
+                    final Place place = likelyPlaces.getPlaceLikelihoods().get(0).getPlace();
+                    final String storeName = place.getName();
+                    Log.i("Place Id", String.valueOf(place.getId()));
+                    new AlertDialog.Builder(MapsActivity.this)
+                            .setTitle("Location")
+                            .setMessage(getString(R.string.are_you_in_the_store_name, storeName))
+                            .setPositiveButton(R.string.yes, (dialog, which) -> {
+                                //Select the current store
+                                StoreDetails store = new StoreDetails(place.getId(), place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
+                                selectPlaceOnMap(store);
+                                showQueueInputDialog(store);
 
-                                    }
+                            })
+                            .setNegativeButton(R.string.no, (dialog, which) -> filterStoresAndShowPlacesDialog(likelyPlaces))
+                            .setIcon(R.drawable.marker)
+                            .show();
 
-                                })
-                                .setNegativeButton(R.string.no, new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        filterStoresAndShowPlacesDialog(likelyPlaces);
-
-                                    }
-                                })
-                                .setIcon(R.drawable.marker)
-                                .show();
-
-                    } else {
-                        Log.e(TAG, "Exception: %s", task.getException());
-                    }
+                } else {
+                    Log.e(TAG, "Exception: %s", task.getException());
                 }
             });
         } else {
-            // The user has not granted permission.
+            //The user has not granted permission.
             Log.i(TAG, "The user did not grant location permission.");
-            // Add a default marker, because the user hasn't selected a place.
+            //Add a default marker, because the user hasn't selected a place.
 
-            MarkerOptions markerOptions = new MarkerOptions()
-                    .title(getString(R.string.default_info_title))
-                    .position(defaultLocation)
-                    .snippet(getString(R.string.default_info_snippet));
+            reportMarker = addMarker(getString(R.string.default_info_title), getString(R.string.default_info_snippet), defaultLocation);
 
-
-            removeMarker();
-            reportMarker = map.addMarker(markerOptions);
-
-            // Prompt the user for permission.
+            //Prompt the user for permission.
             getLocationPermission();
         }
     }
 
-    //create store record.
+    //Create store record.
     private void saveUserInput(StoreDetails storeInput, int value) {
         //create queue record object.
         QueueRecordEntity queueRecord = new QueueRecordEntity();
@@ -521,21 +510,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         userService.updateField(deviceId, "points", FieldValue.increment(5));
 
-        // Create a new store
+        //Create a new store
         StoreEntity store = new StoreEntity();
         store.setName(storeInput.getName());
         store.setAddress(storeInput.getAddress());
         LatLng coord = storeInput.getCoordinates();
         store.setCoordinates(new GeoPoint(coord.latitude, coord.longitude));
         store.setQueueRecords(Collections.singletonList(queueRecord));
-        //retrieve stores
+        //Retrieve stores
         storeService.getById(storeInput.getId(), documentSnapshot -> {
             if (documentSnapshot.exists()) {
                 Log.i("Retrieving document", "Document already created");
                 storeService.updateField(documentSnapshot.getId(), "queueRecords", FieldValue.arrayUnion(queueRecord));
             } else {
 
-                // Add a new store with a generated ID.
+                //Add a new store with a generated ID.
                 storeService.update(storeInput.getId(), store, new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
@@ -555,27 +544,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         builder.setMessage(getString((R.string.how_many_people_are_in_the_queue)));
         builder.setView(picker);
 
-        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+        builder.setPositiveButton("Ok", (dialog, id) -> {
+            String newLevel = "";
+            if (!levelService.getUserLevel(currentPoints + 5).equals(levelEntity)) {
+                newLevel = "Congratulations! You've moved to the next level. Check details in the diamond icon!";
+            }
+            saveUserInput(store, picker.getValue());
 
-            public void onClick(DialogInterface dialog, int id) {
-                saveUserInput(store, picker.getValue());
-                //  Toast.makeText(getApplicationContext(), "OK Pressed: " + picker.getValue(), Toast.LENGTH_LONG).show();
-                final AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-                builder.setMessage(getString((R.string.thank_you)));
-                builder.show();
-            }
+            final AlertDialog.Builder builder1 = new AlertDialog.Builder(MapsActivity.this);
+            builder1.setMessage(getString(R.string.thank_you, newLevel));
+            builder1.show();
         });
-        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                Toast.makeText(getApplicationContext(), "Cancel Pressed", Toast.LENGTH_LONG).show();
-            }
-        });
+        builder.setNegativeButton("Cancel", (dialog, id) -> Toast.makeText(getApplicationContext(), "Cancel Pressed", Toast.LENGTH_LONG).show());
         builder.show();
     }
 
     //Displays a form allowing the user to select a place from a list of likely places.
     private void filterStoresAndShowPlacesDialog(FindCurrentPlaceResponse likelyPlaces) {
-        // Set the count, handling cases where less than 30 entries are returned.
+        //Set the count, handling cases where less than 30 entries are returned.
         int count = Math.min(likelyPlaces.getPlaceLikelihoods().size(), M_MAX_ENTRIES);
 
         List<StoreDetails> storeDetailsList = new ArrayList<>();
@@ -585,22 +571,19 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             StoreDetails store = new StoreDetails(place.getId(), place.getName(), place.getAddress(), place.getLatLng(), place.getAttributions());
             storeDetailsList.add(store);
         }
-        // Show a dialog offering the user the list of likely places, and add a marker at the selected place.
-        // Ask the user to choose the place where they are now.
-        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                // The "which" argument contains the position of the selected item.
-                StoreDetails store = storeDetailsList.get(which);
-                selectPlaceOnMap(store);
-                showQueueInputDialog(store);
-            }
+        //Show a dialog offering the user the list of likely places, and add a marker at the selected place.
+        //Ask the user to choose the place where they are now.
+        DialogInterface.OnClickListener listener = (dialog, which) -> {
+            // The "which" argument contains the position of the selected item.
+            StoreDetails store = storeDetailsList.get(which);
+            selectPlaceOnMap(store);
+            showQueueInputDialog(store);
         };
         map.clear();
         String[] names = storeDetailsList
-                .stream() // Calls the stream API
-                .map(StoreDetails::getName) // Perform a transformation using the map method
-                .toArray(String[]::new); // Convert to array
+                .stream() //Calls the stream API
+                .map(StoreDetails::getName) //Perform a transformation using the map method
+                .toArray(String[]::new); //Convert to array
 
         //Display a list of places
         new AlertDialog.Builder(this)
@@ -611,11 +594,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @SuppressLint("MissingPermission")
     private Task<FindCurrentPlaceResponse> retrieveCurrentPlaces() {
-        // Use fields to define the data types to return.
+        //Use fields to define the data types to return.
         List<Place.Field> placeFields = Arrays.asList(Place.Field.NAME, Place.Field.ADDRESS, Place.Field.LAT_LNG, Place.Field.ID);
-        // Use the builder to create a FindCurrentPlaceRequest.
+        //Use the builder to create a FindCurrentPlaceRequest.
         FindCurrentPlaceRequest request = FindCurrentPlaceRequest.newInstance(placeFields);
-        // Get the likely places - that is, the businesses and other points of interest that are the best match for the device's current location.
+        //Get the likely places - that is, the businesses and other points of interest that are the best match for the device's current location.
         return placesClient.findCurrentPlace(request);
     }
 
@@ -624,19 +607,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         String markerSnippet = store.getAddress();
         if (store.getAttributions() != null) {
             markerSnippet = markerSnippet + "\n" + store.getAttributions();
-
         }
 
-        removeMarker();
+        //Add a marker for the selected place, with an info window showing information about that place.
+        reportMarker = addMarker(store.getName(), markerSnippet, markerLatLng);
 
-        // Add a marker for the selected place, with an info window showing information about that place.
-        reportMarker = map.addMarker(new MarkerOptions()
-                .title(store.getName())
-                .position(markerLatLng)
-                .snippet(markerSnippet));
-        // Position the map's camera at the location of the marker.
+        //Position the map's camera at the location of the marker.
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
 
+    }
+
+
+    private Marker addMarker(String title, String snippet, LatLng coordinates) {
+        removeMarker();
+        return map.addMarker(new MarkerOptions().title(title).snippet(snippet).position(coordinates));
     }
 
     //Updates the map's UI settings based on whether the user has granted location permission.
@@ -671,6 +655,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     subscription.setDate(new Date());
                     subscription.setStoreId(doc.getId());
                     userService.updateField(deviceId, "queueSubscription", FieldValue.arrayUnion(subscription));
+
+                    Toast toast = Toast.makeText(getApplicationContext(), "Subscription successful!", Toast.LENGTH_LONG);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
                 })
                 .setNegativeButton(R.string.no, (dialog, which) -> {
                     //

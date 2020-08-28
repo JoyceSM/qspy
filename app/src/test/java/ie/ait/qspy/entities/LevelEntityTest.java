@@ -1,9 +1,7 @@
-package ie.ait.qspy.firebase;
+package ie.ait.qspy.entities;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import ie.ait.qspy.firebase.entities.LevelEntity;
 
 import static org.junit.Assert.*;
 
@@ -12,7 +10,7 @@ public class LevelEntityTest {
     private LevelEntity level;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         level = new LevelEntity("Level 1", 0L, 40L, "level1");
     }
 

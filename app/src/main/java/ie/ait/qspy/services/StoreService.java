@@ -3,7 +3,7 @@ package ie.ait.qspy.services;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
 
-import ie.ait.qspy.firebase.entities.StoreEntity;
+import ie.ait.qspy.entities.StoreEntity;
 
 public class StoreService extends AbstractService {
 

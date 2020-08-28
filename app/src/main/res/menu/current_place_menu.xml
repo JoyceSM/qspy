@@ -16,13 +16,13 @@
     <item
         android:id="@+id/level"
         android:actionLayout="@layout/custom_info_contents"
-        android:icon="@drawable/trophy"
-        android:title="level"
+        android:icon="@drawable/diamond"
+        android:title="@string/level"
         app:showAsAction="always" />
 
     <item
         android:id="@+id/total_points"
-        android:title="0"
+        android:title="@string/_0"
         app:showAsAction="ifRoom" />
 
     <item

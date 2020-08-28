@@ -1,4 +1,4 @@
-package ie.ait.qspy.firebase.entities;
+package ie.ait.qspy.entities;
 
 import java.util.Date;
 
@@ -6,7 +6,6 @@ public class QueueSubscriptionEntity {
 
     private Date date;
     private String storeId;
-    private int maxLength;
 
     public Date getDate() {
         return date;
@@ -24,11 +23,4 @@ public class QueueSubscriptionEntity {
         this.storeId = storeId;
     }
 
-    public int getMaxLength() {
-        return maxLength;
-    }
-
-    public void setMaxLength(int maxLength) {
-        this.maxLength = maxLength;
-    }
 }
