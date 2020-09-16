@@ -23,8 +23,6 @@ import ie.ait.qspy.services.StoreService;
 
 public class OfferActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
 
-    private Button btnSend;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,13 +33,13 @@ public class OfferActivity extends AppCompatActivity implements AdapterView.OnIt
         TextView storeName = findViewById(R.id.store_name);
         storeName.setText(name);
         //Create spinner level
-        Spinner spinner = (Spinner) findViewById(R.id.levels_spinner);
+        Spinner spinner = findViewById(R.id.levels_spinner);
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.levels_array, android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
 
         //Create send button.
-        btnSend = findViewById(R.id.btn_send);
+        Button btnSend = findViewById(R.id.btn_send);
         btnSend.setOnClickListener(view -> {
             Toast toast = Toast.makeText(getApplicationContext(), "The offer was successfully sent!", Toast.LENGTH_LONG);
             toast.setGravity(Gravity.CENTER, 0, 0);
@@ -49,7 +47,6 @@ public class OfferActivity extends AppCompatActivity implements AdapterView.OnIt
             finish();
 
         });
-
 
         //Add logo in the action bar.
         getSupportActionBar().setHomeAsUpIndicator(R.drawable.logo_small);
@@ -61,9 +58,8 @@ public class OfferActivity extends AppCompatActivity implements AdapterView.OnIt
 
     @Override
     public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
-        Spinner spinner = (Spinner) findViewById(R.id.levels_spinner);
+        Spinner spinner = findViewById(R.id.levels_spinner);
         spinner.setOnItemSelectedListener(this);
-
     }
 
     @Override

@@ -42,7 +42,6 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
 
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
@@ -65,7 +64,6 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import com.google.firebase.firestore.GeoPoint;
-import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.iid.FirebaseInstanceId;
 
 import java.text.SimpleDateFormat;
@@ -212,9 +210,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     int count = Math.max(queueRecords.size() - 3, 0);
                     for (int i = queueRecords.size() - 1; i >= count; i--) {
                         getRecordsDate(stringBuilder, queueRecords.get(i));
-
                     }
-
+                    stringBuilder.append(System.lineSeparator()).append(System.lineSeparator()).append("Click here to subscribe!");
                     reportMarker = addMarker(name, stringBuilder.toString(), latLng);
                     reportMarker.setTag(documentSnapshot);
                     reportMarker.showInfoWindow();
@@ -376,7 +373,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap map) {
         this.map = map;
-
         this.map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
 
             @Override
@@ -413,21 +409,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         try {
             if (locationPermissionGranted) {
                 Task<Location> locationResult = fusedLocationProviderClient.getLastLocation();
-                locationResult.addOnCompleteListener(this, new OnCompleteListener<Location>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Location> task) {
-                        if (task.isSuccessful()) {
-                            //Set the map's camera position to the current location of the device.
-                            lastLocation = task.getResult();
-                            if (lastLocation != null) {
-                                map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), DEFAULT_ZOOM));
-                            }
-                        } else {
-                            Log.d(TAG, "Current location is null. Using defaults.");
-                            Log.e(TAG, "Exception: %s", task.getException());
-                            map.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, DEFAULT_ZOOM));
-                            map.getUiSettings().setMyLocationButtonEnabled(false);
+                locationResult.addOnCompleteListener(this, task -> {
+                    if (task.isSuccessful()) {
+                        //Set the map's camera position to the current location of the device.
+                        lastLocation = task.getResult();
+                        if (lastLocation != null) {
+                            map.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lastLocation.getLatitude(), lastLocation.getLongitude()), DEFAULT_ZOOM));
                         }
+                    } else {
+                        Log.d(TAG, "Current location is null. Using defaults.");
+                        Log.e(TAG, "Exception: %s", task.getException());
+                        map.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, DEFAULT_ZOOM));
+                        map.getUiSettings().setMyLocationButtonEnabled(false);
                     }
                 });
             }
@@ -614,7 +607,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         //Position the map's camera at the location of the marker.
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(markerLatLng, DEFAULT_ZOOM));
-
     }
 
 
@@ -661,7 +653,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     toast.show();
                 })
                 .setNegativeButton(R.string.no, (dialog, which) -> {
-                    //
+                    // Do nothing
                 })
                 .setIcon(R.drawable.bell)
                 .show();

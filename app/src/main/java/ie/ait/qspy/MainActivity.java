@@ -39,7 +39,7 @@ public class MainActivity extends AppIntro {
         deviceId = new DeviceUtils().getDeviceId(getContentResolver());
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-//        if (!prefs.getBoolean("firstTime", false)) {
+       //  if (!prefs.getBoolean("firstTime", false)) {
         createSlides();
         saveUser();
         SharedPreferences.Editor editor = prefs.edit();
@@ -48,7 +48,6 @@ public class MainActivity extends AppIntro {
 
 //        } else {
 //            openMapsActivity();
-//
 //        }
 
     }
