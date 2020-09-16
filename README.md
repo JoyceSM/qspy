@@ -8,3 +8,8 @@ The project targets the current queueing issues by providing a dynamic Android a
 - Android
 + Cloud Firestore
 * Google API
+
+
+### Overview
+![Alt Text](https://github.com/JoyceSM/qspy/blob/master/app/src/main/res/drawable/qspy.gif)
+
